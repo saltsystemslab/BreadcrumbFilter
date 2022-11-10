@@ -100,6 +100,27 @@ namespace DynamicPrefixFilter {
             return retval;
         }
 
+        //fix this function
+        // std::uint_fast8_t insertOrdered(std::uint_fast8_t remainder, std::size_t boundsMask) {
+        //     if constexpr (DEBUG) {
+        //         assert(loc < NumRemainders);
+        //     }
+        //     boundsMask <<= Offset;
+        //     std::uint_fast8_t retval = remainders[NumRemainders-1];
+        //     //replace the and with compare?
+        //     if((boundsMask & (1ull << 63)) != 0 && remainder >= retval) {
+        //         return remainder;
+        //     }
+
+        //     __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+        //     __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+        //     __m512i packedStoreWithRemainder = _mm512_mask_set1_epi8(packedStore, 1, remainder);
+        //     packedStore = _mm512_mask_permutexvar_epi8(packedStore, StoreMask, shuffleVectors[loc], packedStoreWithRemainder);
+        //     _mm512_storeu_si512(nonOffsetAddr, packedStore);
+
+        //     return retval;
+        // }
+
         void remove(std::size_t loc) {
             __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
             __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
@@ -359,8 +380,10 @@ namespace DynamicPrefixFilter {
 
             uint_fast8_t remainder8BitPart = remainder & 255;
             uint_fast8_t remainder4BitPart = remainder >> 8;
-            uint_fast16_t overflow = store8BitPart.insert(remainder8BitPart, loc) << 4ull;
-            overflow |= store4BitPart.insert(remainder4BitPart, loc);
+            // uint_fast16_t overflow = store8BitPart.insert(remainder8BitPart, loc) << 4ull;
+            // overflow |= store4BitPart.insert(remainder4BitPart, loc);
+            uint_fast16_t overflow = store8BitPart.insert(remainder8BitPart, loc); //how does doing this and the above work? Should only be this
+            overflow |= store4BitPart.insert(remainder4BitPart, loc) << 8ull; //Oh right cause this part is never even used for anything, as 12 bit store is only used in the backyard, where return value is not used. But still nice to fix this oversight
             return overflow;
         }
 

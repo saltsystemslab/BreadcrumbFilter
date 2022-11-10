@@ -11,7 +11,8 @@ using namespace DynamicPrefixFilter;
 
 template<size_t NumKeys, size_t NumMiniBuckets>
 struct alignas(1) FakeBucket {
-    static constexpr size_t NumBytes = (NumKeys+NumMiniBuckets+7)/8;
+    // static constexpr size_t NumBytes = (NumKeys+NumMiniBuckets+7)/8;
+    static constexpr size_t NumBytes = MiniFilter<NumKeys, NumMiniBuckets>::NumBytes;
     static constexpr size_t NumUllongs = (NumBytes+7)/8;
     static constexpr size_t NumExtraBytes = NumUllongs*8 + 10 - NumBytes; //just some random extra bytes to make sure the filter isn't doing weird stuff
     MiniFilter<NumKeys, NumMiniBuckets> filterBytes;
@@ -54,12 +55,12 @@ struct alignas(1) FakeBucket {
         });
     }
 
-    void checkRemoveFirstElement(std::size_t expectedMiniBucketIndex) {
-        basicFunctionTestWrapper([&] () -> void {
-            std::size_t miniBucketIndex = filterBytes.removeFirstElement();
-            assert(miniBucketIndex == expectedMiniBucketIndex);
-        });
-    }
+    // void checkRemoveFirstElement(std::size_t expectedMiniBucketIndex) {
+    //     basicFunctionTestWrapper([&] () -> void {
+    //         std::size_t miniBucketIndex = filterBytes.removeFirstElement();
+    //         assert(miniBucketIndex == expectedMiniBucketIndex);
+    //     });
+    // }
 
     void checkQuery(size_t miniBucketIndex, pair<size_t, size_t> expectedBounds) {
         basicFunctionTestWrapper([&] () -> void {
@@ -84,6 +85,15 @@ struct alignas(1) FakeBucket {
             // cout << "Expected bounds: " << expectedBounds.first << " " << expectedBounds.second << endl;
             // cout << "Got bounds: " << __builtin_ctzll(boundsMask.first) << " " << __builtin_ctzll(boundsMask.second) << endl;
             assert(boundsMask.first == (1ull << expectedBounds.first) && boundsMask.second == (1ull << expectedBounds.second));
+        });
+    }
+
+    void checkQueryBeginning(size_t miniBucketIndex, size_t expectedBeginning) {
+        basicFunctionTestWrapper([&] () -> void {
+            size_t beginning = filterBytes.queryMiniBucketBeginning(miniBucketIndex);
+            // cout << "Expected bounds: " << expectedBounds.first << " " << expectedBounds.second << endl;
+            // cout << "Got bounds: " << __builtin_ctzll(boundsMask.first) << " " << __builtin_ctzll(boundsMask.second) << endl;
+            assert(beginning == expectedBeginning);
         });
     }
 
@@ -125,35 +135,36 @@ void testBucket(mt19937& generator) {
     }
     cout << "pass" << endl;
 
+    //Fix this test. Its obviously a good test, just previously I was assuming  that minibucket index and key index don't actually matter cause they're just summed at the end, but now I actually use the miniBucketIndex so the assumptions of this test are not valid. Come up with an actual random insertion thing
     //Bad random cause it favors longer chains and isn't uniform but whatever we'll just keep it here as a test
-    cout << "Testing random inserts." << endl;
-    temp = FakeBucket<NumKeys, NumMiniBuckets>(generator);
-    cout << "Testing filling the mini filter: ";
-    for(size_t i{1}; i <= NumKeys; i++) {
-        // cout << i << endl;
-        uniform_int_distribution<size_t> posDist(0, i-2+NumMiniBuckets);
-        size_t posOfKeyToInsert = posDist(generator);
-        uniform_int_distribution<size_t> miniBucketIndexDist(0, min(NumMiniBuckets-1, posOfKeyToInsert));
-        size_t randomMiniBucketIndex = miniBucketIndexDist(generator);
-        size_t randomKeyIndex =  posOfKeyToInsert-randomMiniBucketIndex;
-        // cout << "Inserting " << randomKeyIndex << " " << randomMiniBucketIndex << endl;
-        assert(!temp.insert(randomMiniBucketIndex, randomKeyIndex).has_value());
-        temp.checkCount(i);
-    }
-    cout << "pass" << endl;
+    // cout << "Testing random inserts." << endl;
+    // temp = FakeBucket<NumKeys, NumMiniBuckets>(generator);
+    // cout << "Testing filling the mini filter: ";
+    // for(size_t i{1}; i <= NumKeys; i++) {
+    //     // cout << i << endl;
+    //     uniform_int_distribution<size_t> posDist(0, i-2+NumMiniBuckets);
+    //     size_t posOfKeyToInsert = posDist(generator);
+    //     uniform_int_distribution<size_t> miniBucketIndexDist(0, min(NumMiniBuckets-1, posOfKeyToInsert));
+    //     size_t randomMiniBucketIndex = miniBucketIndexDist(generator);
+    //     size_t randomKeyIndex =  posOfKeyToInsert-randomMiniBucketIndex;
+    //     // cout << "Inserting " << randomKeyIndex << " " << randomMiniBucketIndex << endl;
+    //     assert(!temp.insert(randomMiniBucketIndex, randomKeyIndex).has_value());
+    //     temp.checkCount(i);
+    // }
+    // cout << "pass" << endl;
     
-    cout << "Testing overflowing the mini filter: ";
-    for(size_t i{1}; i <= NumKeys; i++) {
-        uniform_int_distribution<size_t> posDist(0, NumKeys+NumMiniBuckets-1);
-        size_t posOfKeyToInsert = posDist(generator);
-        uniform_int_distribution<size_t> miniBucketIndexDist(0, min(NumMiniBuckets-1, posOfKeyToInsert));
-        size_t randomMiniBucketIndex = miniBucketIndexDist(generator);
-        size_t randomKeyIndex =  posOfKeyToInsert-randomMiniBucketIndex;
-        std::optional<uint64_t> retval = temp.insert(randomMiniBucketIndex, randomKeyIndex);
-        assert(retval.has_value());
-        temp.checkCount(NumKeys);
-    }
-    cout << "pass" << endl;
+    // cout << "Testing overflowing the mini filter: ";
+    // for(size_t i{1}; i <= NumKeys; i++) {
+    //     uniform_int_distribution<size_t> posDist(0, NumKeys+NumMiniBuckets-1);
+    //     size_t posOfKeyToInsert = posDist(generator);
+    //     uniform_int_distribution<size_t> miniBucketIndexDist(0, min(NumMiniBuckets-1, posOfKeyToInsert));
+    //     size_t randomMiniBucketIndex = miniBucketIndexDist(generator);
+    //     size_t randomKeyIndex =  posOfKeyToInsert-randomMiniBucketIndex;
+    //     std::optional<uint64_t> retval = temp.insert(randomMiniBucketIndex, randomKeyIndex);
+    //     assert(retval.has_value());
+    //     temp.checkCount(NumKeys);
+    // }
+    // cout << "pass" << endl;
 
     cout << "Testing inserting randomly properly, then querying elements afterwards: ";
     temp = FakeBucket<NumKeys, NumMiniBuckets>(generator);
@@ -176,8 +187,10 @@ void testBucket(mt19937& generator) {
     for(size_t miniBucketIndex{0}; miniBucketIndex < NumMiniBuckets; miniBucketIndex++) {
         pair<size_t, size_t> expectedBounds{minBound, maxBound};
         temp.checkQuery(miniBucketIndex, expectedBounds);
-        if(NumKeys < 64)
+        if(NumKeys < 64){
             temp.checkQueryMask(miniBucketIndex, expectedBounds);
+            temp.checkQueryBeginning(miniBucketIndex, expectedBounds.first);
+        }
         minBound += sizeEachMiniBucket[miniBucketIndex];
         if (miniBucketIndex+1 < NumMiniBuckets) {
             maxBound += sizeEachMiniBucket[miniBucketIndex+1];
@@ -191,7 +204,7 @@ void testBucket(mt19937& generator) {
     if(NumKeys+NumMiniBuckets <= 128) {
         cout << "Testing if removing half and then adding another random half back in works" << endl;
         //Removing half
-        for(size_t i{0}; i < NumKeys/2-1; i++) {
+        for(size_t i{0}; i < NumKeys/2; i++) {
             uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
             size_t miniBucketIndex = miniBucketIndexDist(generator);
             while(sizeEachMiniBucket[miniBucketIndex] == 0) miniBucketIndex = miniBucketIndexDist(generator);
@@ -203,15 +216,18 @@ void testBucket(mt19937& generator) {
             temp.checkCount(NumKeys-i-1);
             sizeEachMiniBucket[miniBucketIndex]--;
         }
+        
+        cout << "Passed half"<< endl;
 
         std::uint64_t indexFirst = 0;
         for(; sizeEachMiniBucket[indexFirst] == 0; indexFirst++);
-        temp.checkRemoveFirstElement(indexFirst);
-        temp.checkCount(NumKeys-NumKeys/2);
-        sizeEachMiniBucket[indexFirst]--;
+        // temp.checkRemoveFirstElement(indexFirst);
+        // temp.checkCount(NumKeys-NumKeys/2);
+        // sizeEachMiniBucket[indexFirst]--;
 
         //Adding back another half
         for(size_t i{0}; i < NumKeys/2; i++) {
+            cout << i << endl;
             uniform_int_distribution<size_t> miniBucketIndexDist(0, NumMiniBuckets-1);
             size_t miniBucketIndex = miniBucketIndexDist(generator);
             size_t keyIndex = 0;
@@ -280,9 +296,9 @@ int main() {
     mt19937 generator (rd());
 
     for(size_t i{0}; i < 100; i++) {
-        testBucket<51, 52>(generator);
-        testBucket<25, 26>(generator);
-        testBucket<75, 61>(generator);
-        testBucket<400, 3>(generator); //Just to hit extreme cases that I account for but aren't really all that necessary in the actual filter design lol
+        // testBucket<51, 52>(generator);
+        testBucket<22, 25>(generator);
+        // testBucket<75, 61>(generator);
+        // testBucket<400, 3>(generator); //Just to hit extreme cases that I account for but aren't really all that necessary in the actual filter design lol
     }
 }

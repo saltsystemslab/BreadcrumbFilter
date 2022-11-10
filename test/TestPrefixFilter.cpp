@@ -25,6 +25,7 @@ void testFilter(mt19937 generator, size_t N) {
 
     auto start = chrono::high_resolution_clock::now();    
     for(size_t i{0}; i < N; i++) {
+        // cout << i << endl;
         pf.insert(keys[i]);
     }
     auto end = chrono::high_resolution_clock::now();
@@ -36,6 +37,7 @@ void testFilter(mt19937 generator, size_t N) {
 
     start = chrono::high_resolution_clock::now(); 
     for(size_t i{0}; i < N; i++) {
+        // cout << i << endl;
         assert(pf.query(keys[i]));
     }
     end = chrono::high_resolution_clock::now();
@@ -159,9 +161,9 @@ int main(int argc, char* argv[]) {
     // testDPF<46, 51, 35, 8, 64, 64>(generator, N);
     // testDPF<48, 51, 35, 8, 64, 64>(generator, N);
     // testDPF<51, 51, 35, 8, 64, 64>(generator, N);
-    // testDPF<22, 25, 17, 8, 32, 32>(generator, N);
+    testDPF<22, 25, 17, 8, 32, 32>(generator, N);
     // testDPF<25, 25, 17, 4, 32, 32>(generator, N);
-    testDPF<25, 25, 17, 4, 32, 32>(generator, N);
+    // testDPF<25, 25, 17, 4, 32, 32>(generator, N);
     // testDPF<25, 25, 17, 8, 32, 32>(generator, N);
 
 }

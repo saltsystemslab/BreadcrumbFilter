@@ -10,7 +10,7 @@ namespace DynamicPrefixFilter {
     //Like maybe have one extra key in the minifilter and then basically account for that or smth? Not sure.
     template<std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t, std::size_t> typename TypeOfRemainderStoreTemplate, template<std::size_t> typename TypeOfQRContainerTemplate, std::size_t Size=64>
     struct alignas(Size) Bucket {
-        using TypeOfMiniFilter = MiniFilter<NumKeys, NumMiniBuckets>;
+        using TypeOfMiniFilter = MiniFilter<NumKeys, NumMiniBuckets, TypeOfRemainderStoreTemplate>;
         TypeOfMiniFilter miniFilter;
         using TypeOfRemainderStore = TypeOfRemainderStoreTemplate<NumKeys, TypeOfMiniFilter::Size>;
         TypeOfRemainderStore remainderStore;
@@ -18,11 +18,33 @@ namespace DynamicPrefixFilter {
         
         //Returns an overflowed remainder if there was one to be sent to the backyard.
         TypeOfQRContainer insert(TypeOfQRContainer qr) {
+            // if constexpr (DEBUG) {
+            //     uint64_t x = countKeys();
+            //     std::cout << "fafa " << x << std::endl;
+            // }
             std::size_t loc = miniFilter.queryMiniBucketBeginning(qr.miniBucketIndex);
+            // if constexpr (DEBUG) {
+            //     uint64_t x = countKeys();
+            //     std::cout << "fafa2 " << x << std::endl;
+            //     std::cout << "loc: " << loc << std::endl;
+            // }
             // std::size_t loc = 0;
             if(__builtin_expect(loc == NumKeys, 0)) return qr; //Find a way to remove this if statement!!! That would shave off an entire second!
+            //Can probably do it by slightly changing how the remainder store inserts, right?
             qr.miniBucketIndex = miniFilter.insert(qr.miniBucketIndex, loc);
+            // if constexpr (DEBUG) {
+            //     uint64_t x = countKeys();
+            //     TypeOfMiniFilter::printMiniFilter(miniFilter.filterBytes);
+            //     std::cout << std::endl;
+            //     std::cout << "fafa3s " << x << std::endl;
+            // }
             std::uint64_t overflowRemainder = remainderStore.insert(qr.remainder, loc);
+            // if constexpr (DEBUG) {
+            //     uint64_t x = countKeys();
+            //     TypeOfMiniFilter::printMiniFilter(miniFilter.filterBytes);
+            //     std::cout << std::endl;
+            //     std::cout << "fafa4s " << x << std::endl;
+            // }
             qr.remainder = overflowRemainder;
             return qr;
         }
@@ -30,6 +52,11 @@ namespace DynamicPrefixFilter {
         //Return 1 if found it, 2 if need to go to backyard, 0 if didn't find and don't need to go to backyard
         std::uint64_t query(TypeOfQRContainer qr) {
             std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+            // std::cout << "Querying: ";
+            // printBinaryUInt64(boundsMask.first);
+            // std::cout << ", ";
+            // printBinaryUInt64(boundsMask.second);
+            // std::cout << std::endl;
             std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
             if(inFilter != 0)
                 return 1;
@@ -42,7 +69,8 @@ namespace DynamicPrefixFilter {
         }
         
         // std::uint64_t query(TypeOfQRContainer qr) {
-        //     if constexpr (NumKeys + NumMiniBuckets <= 64) {
+        //     if constexpr (NumKeys + NumMiniBuckets <= 64 && TypeOfMiniFilter::StoreMetadata) {
+        //         std::cout << "hi"<<std::endl;
         //         // if(qr.miniBucketIndex > 0 && miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex-1)) return 2;
         //         // else if (miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex)) {
         //         //     std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
@@ -72,7 +100,7 @@ namespace DynamicPrefixFilter {
         //         //         return 0;
         //         //     }
         //         // }
-        //         if(!miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex)) {
+        //         if(!miniFilter.full() || !miniFilter.miniBucketOutofFilterBounds(qr.miniBucketIndex)) {
         //             std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, (1ull << NumKeys) - 1);
         //             if(inFilter == 0)
         //                 return 0;

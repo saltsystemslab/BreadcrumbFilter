@@ -27,31 +27,84 @@ namespace DynamicPrefixFilter {
     //Relies on little endian ordering
     //Definitely not fully optimized, esp given the fact that I'm being generic and allowing any mini filter size rather than basically mini filter has to fit in 2 words (ullongs)
     //TODO: Fix the organization of this (ex make some stuff public, some stuff private etc), and make an interface (this goes for all the things written so far).
-    template<std::size_t NumKeys, std::size_t NumMiniBuckets>
+    template<std::size_t NumKeys, std::size_t NumMiniBuckets, template<std::size_t, std::size_t> typename TypeOfRemainderStoreTemplate> //store metadata says whether to store the largest bucket in the filter and whether the filter is full in the first few bits of the filter to optimize queries
     struct alignas(1) MiniFilter {
-        static constexpr std::size_t NumBits = NumKeys+NumMiniBuckets;
-        static constexpr std::size_t NumBytes = (NumKeys+NumMiniBuckets+7)/8;
+        static constexpr std::size_t clog(std::size_t x) {
+            if(x == 0) return -1ull;
+            for (size_t i = 1; i <= 64; i++) {
+                x /= 2;
+                if (x == 0) return i;
+            }
+        }
+
+        static constexpr std::size_t WouldBeFrontOffset = clog(NumKeys) + 1;
+        static constexpr bool StoreMetadata = false;
+        // static constexpr bool StoreMetadata = (NumKeys + NumMiniBuckets <= 64) && ((TypeOfRemainderStoreTemplate<NumKeys, 0>::Size*8 + (NumKeys+NumMiniBuckets+WouldBeFrontOffset)) <= 32*8); //Need to configure later but for now this is all you get. Assumes 32 byte buckets, single word minifilter, and checks if can fit this extra data
+        static constexpr bool StoreLockBit = false;
+        // static constexpr bool StoreLockBit = !StoreMetadata; //Add lock bit; storemetadata adds by default
+        //Needs to store the largest bucket currently in the filter, so clog gives the number of bits needed for that. Extra bit is unecessary but due to way I designed the filter should? help with query times by removing the edge case of the minibucket being zero when queries by basically padding with an extra bit to never worry about that case. Will later be actually useful though, when we do locking, in which case we will just atomically set that bit & it thus serves a dual purpose!
+        static constexpr std::size_t FrontOffset = StoreMetadata ? WouldBeFrontOffset: (StoreLockBit? 1 : 0); //Gonna assume this fits in a byte cause we generally assume <= 64 size buckets anyways. Makes some things easier to do that
+        static constexpr std::size_t FrontOffsetMinusOne = FrontOffset - 1;
+        static constexpr std::size_t BiggestMiniBucketMask = (1ull << FrontOffsetMinusOne) - 1;
+        // static_assert(FrontOffset == 0);
+        static_assert((!StoreMetadata) || FrontOffset == 6);
+
+        static constexpr std::size_t NumBits = NumKeys+NumMiniBuckets+FrontOffset;
+        static constexpr std::size_t NumBytes = (NumBits+7)/8;
+        static_assert((!StoreLockBit) || NumBytes <= 8); //Very temporary
+        static_assert((!StoreMetadata) || NumBytes <= 8); //For now
         static constexpr std::size_t Size = NumBytes; // Again some naming consistency problems to address later
         static constexpr std::size_t NumUllongs = (NumBytes+7)/8;
+
+        static constexpr std::uint64_t firstSegmentMask = -1ull - ((FrontOffset == 0) ? 0 : ((1ull << FrontOffset) - 1));
+        static_assert((!StoreMetadata) || firstSegmentMask == ~63);
         static constexpr std::uint64_t lastSegmentMask = (NumBits%64 == 0) ? -1ull : (1ull << (NumBits%64))-1ull;
+        static constexpr std::uint64_t lastSegmentMaskWOLastBit = (NumBits%64 == 0) ? (-1ull >> 1) : (1ull << ((NumBits%64) -1))-1ull;
+        static constexpr std::uint64_t combinedSegmentMask = firstSegmentMask & lastSegmentMask; //For case when first is last (metadata fits in a long)
+        static constexpr std::uint64_t combinedSegmentMaskWOLastBit = firstSegmentMask & lastSegmentMaskWOLastBit; //For case when first is last (metadata fits in a long)
         static constexpr std::uint64_t lastBitMask = (NumBits%64 == 0) ? (1ull << 63) : (1ull << ((NumBits%64)-1));
         std::array<uint8_t, NumBytes> filterBytes;
 
         static_assert(NumKeys < 64 && NumBytes <= 16); //Not supporting more cause I don't need it
 
         constexpr MiniFilter() {
-            int64_t numBitsNeedToSet = NumMiniBuckets;
-            for(uint8_t& b: filterBytes) {
-                if(numBitsNeedToSet >= 8) {
-                    b = -1;
+            // std::cout << StoreMetadata << std::endl;
+            if constexpr (StoreMetadata || StoreLockBit) {
+                //Gonna assume FrontOffset + NumKeys >= 8, cause seems ridiculous to not have that
+                filterBytes[0] = static_cast<uint8_t>(- (1ull << (FrontOffset-1)));
+                // std::cout << "Filterbytes[0] " << (uint32_t)filterBytes[0] << " " << (uint32_t) ((filterBytes[0] & combinedSegmentMask)) << std::endl;
+                // assert(filterBytes[0] == 224 && ((filterBytes[0] & combinedSegmentMask) == 192));
+                //If want locking support, this bit should be set to zero initially instead, so that when we lock it its 1 and the mini filter is happy.
+
+                int64_t numBitsNeedToSet = NumMiniBuckets - (8 - FrontOffset);
+                for(std::size_t i = 1; i < NumBytes; i++) {
+                    if(numBitsNeedToSet >= 8) {
+                        filterBytes[i] = -1;
+                    }
+                    else if(numBitsNeedToSet > 0) {
+                        filterBytes[i] = (1 << numBitsNeedToSet) - 1;
+                    }
+                    else {
+                        filterBytes[i] = 0;
+                    }
+                    numBitsNeedToSet -= 8;
                 }
-                else if(numBitsNeedToSet > 0) {
-                    b = (1 << numBitsNeedToSet) - 1;
+                
+            }
+            else {
+                int64_t numBitsNeedToSet = NumMiniBuckets;
+                for(uint8_t& b: filterBytes) {
+                    if(numBitsNeedToSet >= 8) {
+                        b = -1;
+                    }
+                    else if(numBitsNeedToSet > 0) {
+                        b = (1 << numBitsNeedToSet) - 1;
+                    }
+                    else {
+                        b = 0;
+                    }
+                    numBitsNeedToSet -= 8;
                 }
-                else {
-                    b = 0;
-                }
-                numBitsNeedToSet -= 8;
             }
             
             if constexpr (DEBUG) {
@@ -67,6 +120,10 @@ namespace DynamicPrefixFilter {
         }
 
         bool full() {
+            if constexpr (NumBytes <= 8) {
+                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                return *fastCastFilter & lastBitMask;
+            }
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
             return *(fastCastFilter + NumUllongs - 1) & lastBitMask; //If the last element is a miniBucket separator, we know we are full! Otherwise, there are keys "waiting" to be allocated to a mini bucket.
         }
@@ -86,11 +143,26 @@ namespace DynamicPrefixFilter {
         }
 
         std::size_t getKeyMask(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) {
+            // if constexpr (StoreMetadata && NumBytes <= 8) {
+            //     return selectNoCtzll(filterSegment, miniBucketSegmentIndex) >> (miniBucketSegmentIndex + FrontOffsetMinusOne);
+            // }
             return selectNoCtzll(filterSegment, miniBucketSegmentIndex) >> miniBucketSegmentIndex;
         }
 
-        std::pair<std::uint64_t, std::uint64_t> queryMiniBucketBoundsMask(std::size_t miniBucketIndex) {
+        std::pair<std::uint64_t, std::uint64_t> queryMiniBucketBoundsMask(std::size_t miniBucketIndex) { //maybe try to fuse into just one pdep? Not convinced about that but idk maybe?
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+
+            if constexpr (StoreMetadata && NumBytes <= 8) {
+                std::uint64_t shiftedFilter = (*fastCastFilter) >> (FrontOffsetMinusOne);
+                // std::uint64_t shiftedFilter = (*fastCastFilter) & (~BiggestMiniBucketMask);
+                return std::make_pair(getKeyMask(shiftedFilter, miniBucketIndex), getKeyMask(shiftedFilter, miniBucketIndex+1));
+            }
+
+            if constexpr (StoreLockBit && NumBytes <= 8) {
+                std::uint64_t shiftedFilter = *fastCastFilter;
+                return std::make_pair(getKeyMask(shiftedFilter, miniBucketIndex), getKeyMask(shiftedFilter, miniBucketIndex+1));
+            }
+
             if constexpr (NumBytes <= 8) {
                 if(miniBucketIndex == 0) {
                     return std::make_pair(1, getKeyMask(*fastCastFilter, miniBucketIndex));
@@ -116,9 +188,58 @@ namespace DynamicPrefixFilter {
             }
         }
 
+        // std::uint64_t queryMiniBucketBoundsMaskS(std::size_t miniBucketIndex) { //maybe try to fuse into just one pdep? Not convinced about that but idk maybe?
+        //     uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+
+        //     if constexpr (StoreMetadata && NumBytes <= 8) {
+        //         std::uint64_t shiftedFilter = (*fastCastFilter) >> (FrontOffsetMinusOne);
+        //         // std::uint64_t shiftedFilter = (*fastCastFilter) & (~BiggestMiniBucketMask);
+        //         return getKeyMask(shiftedFilter, miniBucketIndex+1) - getKeyMask(shiftedFilter, miniBucketIndex);
+        //     }
+
+        //     if constexpr (StoreLockBit && NumBytes <= 8) {
+        //         std::uint64_t shiftedFilter = *fastCastFilter;
+        //         return getKeyMask(shiftedFilter, miniBucketIndex+1)-getKeyMask(shiftedFilter, miniBucketIndex);
+        //     }
+
+        //     if constexpr (NumBytes <= 8) {
+        //         if(miniBucketIndex == 0) {
+        //             return getKeyMask(*fastCastFilter, miniBucketIndex)-1;
+        //         }
+        //         else {
+        //             return getKeyMask(*fastCastFilter, miniBucketIndex)-getKeyMask(*fastCastFilter, miniBucketIndex-1);
+        //         }
+        //     }
+        //     else if (NumBytes <= 16 && NumKeys < 64) { //A bit sus implementation for now but should work?
+        //         uint64_t segmentMiniBucketCount = __builtin_popcountll(*fastCastFilter);
+        //         if(miniBucketIndex == 0) {
+        //             return getKeyMask(*fastCastFilter, miniBucketIndex)-1;
+        //         }
+        //         else if (miniBucketIndex < segmentMiniBucketCount) {
+        //             return getKeyMask(*fastCastFilter, miniBucketIndex)-getKeyMask(*fastCastFilter, miniBucketIndex-1);
+        //         }
+        //         else if (miniBucketIndex == segmentMiniBucketCount) {
+        //             return (getKeyMask(*(fastCastFilter+1), miniBucketIndex - segmentMiniBucketCount) << (64 - segmentMiniBucketCount))-getKeyMask(*fastCastFilter, miniBucketIndex-1);
+        //         }
+        //         else {
+        //             return (getKeyMask(*(fastCastFilter+1), miniBucketIndex - segmentMiniBucketCount) << (64 - segmentMiniBucketCount))-(getKeyMask(*(fastCastFilter+1), miniBucketIndex-segmentMiniBucketCount-1) << (64 - segmentMiniBucketCount));
+        //         }
+        //     }
+        // }
+
         //Returns a pair representing [start, end) of the minibucket. So basically miniBucketIndex to keyIndex conversion
         std::pair<std::size_t, std::size_t> queryMiniBucketBounds(std::size_t miniBucketIndex) {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+
+            if constexpr (StoreMetadata && NumBytes <= 8) {
+                std::uint64_t shiftedFilter = (*fastCastFilter) >> FrontOffsetMinusOne;
+                return std::make_pair(getKeyIndex(shiftedFilter, miniBucketIndex), getKeyIndex(shiftedFilter, miniBucketIndex+1));
+            }
+
+            if constexpr (StoreLockBit && NumBytes <= 8) {
+                return std::make_pair(getKeyIndex(*fastCastFilter, miniBucketIndex), getKeyIndex(*fastCastFilter, miniBucketIndex+1));
+            }
+
             if constexpr (NumBytes <= 8) {
                 if(miniBucketIndex == 0) {
                     return std::make_pair(0, getKeyIndex(*fastCastFilter, miniBucketIndex));
@@ -147,6 +268,20 @@ namespace DynamicPrefixFilter {
         //Tells you which mini bucket a key belongs to. Really works same as queryMniBucketBeginning but just does bit inverse of fastCastFilter. Returns a number larger than the number of miniBuckets if keyIndex is nonexistent (should be--test this)
         std::size_t queryWhichMiniBucket(std::size_t keyIndex) {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+
+            if constexpr (StoreMetadata) {
+                std::uint64_t invFilterSegment = ~(*fastCastFilter);
+                // std::uint64_t segmentKeyCount = __builtin_popcountll(invFilterSegment);
+                if constexpr (NumBytes <= 8) {
+                    return getKeyIndex(invFilterSegment >> FrontOffset, keyIndex);
+                }
+            }
+
+            if constexpr (StoreLockBit && NumBytes <= 8) {
+                std::uint64_t invFilterSegment = ~(*fastCastFilter);
+                return getKeyIndex(invFilterSegment >> FrontOffset, keyIndex);
+            }
+
             if constexpr (NumBytes <= 8) {
                 return getKeyIndex(~(*fastCastFilter), keyIndex);
             }
@@ -166,6 +301,17 @@ namespace DynamicPrefixFilter {
 
         std::size_t queryMiniBucketBeginning(std::size_t miniBucketIndex) {
             //Highly, sus, but whatever
+            if constexpr (StoreMetadata) {
+                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                //For now. Will expand later?
+                if constexpr (NumBytes <= 8) {
+                    return getKeyIndex((*fastCastFilter) >> FrontOffsetMinusOne, miniBucketIndex);
+                }
+            }
+            if constexpr (StoreLockBit && NumBytes <= 8) {
+                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                return getKeyIndex(*fastCastFilter, miniBucketIndex);
+            }
             if(miniBucketIndex == 0) {
                 return 0;
             }
@@ -234,6 +380,18 @@ namespace DynamicPrefixFilter {
         //Vectorize as in the 4 bit remainder store? Probably not needed for if fits in 64 bits, so have a constexpr there.
         //Probably not the most efficient implementation, but this one is at least somewhatish straightforward. Still not great and maybe not even correct
         bool shiftFilterBits(std::size_t in) {
+            if constexpr (NumBytes <= 8) {
+                //Point of this is to drastically simplify this, to not have the overkill AVX512 instructions? Although then again idk if that's even gonna help. But yeah the point is we shift, and do NOT pay attention to the overflow. Just that beforehand we check if the filter is full, which is equivalent. Just simplifies coding for this special case.
+                bool startedFull = full(); //means overflow
+                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                // std::cout << fastCastFilter << std::endl;
+                uint64_t shiftmask = (~((1ull << in) - 1));
+                uint64_t shiftmaskWOBit = shiftmask & combinedSegmentMaskWOLastBit;
+                uint64_t shiftmaskWBit = shiftmask & combinedSegmentMask;
+                *fastCastFilter = (((*fastCastFilter) & shiftmaskWOBit) << 1) | ((*fastCastFilter) & (~shiftmaskWBit));
+                return startedFull;
+            }
+
             int64_t index = in;
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
             std::size_t endIndex = NumBits;
@@ -277,6 +435,12 @@ namespace DynamicPrefixFilter {
         //TODO: specialize it for just up to two ullongs to simplify the code (& possibly small speedup but probably not)
         //Keys are zeros, so "fix overflow" basically makes it so  that we overflow the key, not the mini bucket. We essentially aim to replace the last zero with a one
         uint64_t fixOverflow() {
+            if constexpr (NumBytes <=8 && StoreMetadata) {
+                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                uint64_t biggestMiniBucket = (*fastCastFilter) & BiggestMiniBucketMask;
+                *fastCastFilter = (*fastCastFilter) | (1ull << (biggestMiniBucket + NumKeys + FrontOffset));
+                return biggestMiniBucket;
+            }
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
             uint64_t lastSegmentInverse = (~(*fastCastFilter)) & lastSegmentMask;
             uint64_t offsetMiniBuckets = NumBits-(NumUllongs-1)*64; //Again bad name. We want to return the mini bucket index, and to do that we are counting how many mini buckets from the end we have. Originally had this be popcount, but we don't need popcount, since we only continue if everything is ones basically!
@@ -298,6 +462,24 @@ namespace DynamicPrefixFilter {
             *fastCastFilter = (*fastCastFilter) | (1ull << (63-skipMiniBuckets));
             return NumMiniBuckets-skipMiniBuckets-offsetMiniBuckets-1;
         }
+
+        void updateLargestMiniBucket() {
+            if constexpr (StoreMetadata) { //fix this
+                if (full()){
+                    uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                    uint64_t lastSegmentInverse = (~(*fastCastFilter)) & combinedSegmentMask;
+                    size_t lastKeyReverseIndex = _lzcnt_u64(lastSegmentInverse); //Everything after this is a minibucket
+                    //NumMiniBuckets - 1 - ((lastKeyReverseIndex-1) - (64-NumBits)) // cause NumBits counts up to the end, we want how many bits from the end to subtract off
+                    size_t lastKeyMiniBucket = (NumMiniBuckets + 64 - NumBits) - lastKeyReverseIndex;
+                    // std::cout << "lastKeyminibucket " << lastKeyMiniBucket << " " << lastKeyReverseIndex << " " << std::endl;
+                    *fastCastFilter = ((*fastCastFilter) & (~BiggestMiniBucketMask)) | (lastKeyMiniBucket);
+                    // uint64_t offsetMiniBuckets = NumBits; //Probably fix this line? Not sure. Honestly probably rewrite this.
+                    //Also either make it only run when its full (probably best) or use countkeys cause you kinda have to know how many keys there are in order to do the offsets
+                    // uint64_t biggestMiniBucket = NumMiniBuckets-(skipMiniBuckets - 64 + offsetMiniBuckets)-1;
+                    // *fastCastFilter = ((*fastCastFilter) & (~BiggestMiniBucketMask)) | (biggestMiniBucket);
+                }
+            }
+        }
         
         //Returns true if the filter was full and had to kick somebody to make room.
         //Since we assume that keyIndex was obtained with a query or is at least valid, we have an implicit assertion that keyIndex <= NumKeys (so can essentially be the key bigger than all the other keys in the filter & it becomes the overflow)
@@ -306,20 +488,38 @@ namespace DynamicPrefixFilter {
             if constexpr (DEBUG) {
                 x = countKeys();
             }
-            if constexpr (DEBUG) assert(keyIndex != NumBits);
-            std::size_t bitIndex = miniBucketIndex + keyIndex;
+            // if constexpr (DEBUG) assert(keyIndex != NumBits);
+            // if(keyIndex == NumKeys) return NumKeys;
+            // std::size_t bitIndex = miniBucketIndex + keyIndex;
+            std::size_t bitIndex = miniBucketIndex + keyIndex + FrontOffset;
+            if constexpr (DEBUG) assert(bitIndex < NumBits);
+            if constexpr (StoreMetadata) {
+                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                if(full() && miniBucketIndex >= ((*fastCastFilter) & BiggestMiniBucketMask))
+                    return miniBucketIndex;
+            }
             bool overflow = shiftFilterBits(bitIndex);
             if (overflow) {
+                if constexpr (StoreMetadata) {
+                    uint64_t miniBucket = fixOverflow();
+                    updateLargestMiniBucket();
+                    return miniBucket;
+                }
                 return fixOverflow();
             }
+            
+            updateLargestMiniBucket();
+
             if constexpr (DEBUG) {
+                if(!(countKeys() == x+1 || countKeys() == NumKeys))
+                    std::cout << x << " " << countKeys() << " " << bitIndex << std::endl;
                 assert(countKeys() == x+1 || countKeys() == NumKeys);
             }
             return -1ull;
         }
 
         void remove(std::size_t miniBucketIndex, std::size_t keyIndex) {
-            std::size_t index = miniBucketIndex + keyIndex;
+            std::size_t index = miniBucketIndex + keyIndex + FrontOffset;
             if constexpr (NumBytes <= 8){
                 uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
                 uint64_t shiftBitIndex = 1ull << index;
@@ -341,6 +541,11 @@ namespace DynamicPrefixFilter {
         //Maybe remove the for loop & specialize it for <= 2 ullongs
         //We implement this by counting where the last bucket cutoff is, and then the number of keys is just that minus the number of buckets. So p similar to fixOverflow()
         std::size_t countKeys() {
+            if constexpr (NumBytes <= 8 && StoreMetadata) {
+                uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes));
+                uint64_t segment = (*fastCastFilter) & combinedSegmentMask;
+                return (64 - _lzcnt_u64(segment)) - NumMiniBuckets - FrontOffset;
+            }
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
             uint64_t segment = (*fastCastFilter) & lastSegmentMask;
             size_t offset = (NumUllongs-1) * 64;
@@ -357,7 +562,11 @@ namespace DynamicPrefixFilter {
         //Tells you if a mini bucket is at the very "end" of a filter. Basically, the point is to tell you if you need to go to the backyard.
         bool miniBucketOutofFilterBounds(std::size_t miniBucket) {
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes));
+            // static_assert(StoreMetadata);
             if constexpr (NumBytes <= 8) {
+                if constexpr (StoreMetadata) {
+                    return miniBucket >= ((*fastCastFilter) & BiggestMiniBucketMask);
+                }
                 // std::size_t previousElementsMask = (~(((1ull<<NumKeys) << miniBucket) - 1)) & lastSegmentMask; //Basically, we want to see if there is a zero (meaning a key) after where the bucket should be if it is after all the keys
                 // return ((*fastCastFilter) & lastSegmentMask) >= previousElementsMask; //Works since each miniBucket is a one, so we test if t
                 std::size_t previousElementsMask = ((((-1ull)<<NumKeys) << miniBucket)) & lastSegmentMask;
@@ -406,9 +615,10 @@ namespace DynamicPrefixFilter {
             bool expectedOverflowBit = 0;
             std::optional<uint64_t> expectedOverflow = {};
             // bool startedShifting = false;
-            int64_t bitsNeedToSet = miniBucketIndex+keyIndex;
-            int64_t bitsLeftInFilter = NumBits;
+            int64_t bitsNeedToSet = miniBucketIndex+keyIndex+FrontOffset;
+            int64_t bitsLeftInFilter = std::min(countKeys() + NumMiniBuckets+1 + FrontOffset, NumBits);
             size_t lastZeroPos = -1;
+            size_t secondLastZeroPos = -1;
             for(std::size_t i{0}; i < NumBytes; i++) {
                 uint8_t byte = filterBytes[i];
                 uint8_t shiftedByte = 0;
@@ -416,6 +626,7 @@ namespace DynamicPrefixFilter {
                     if(bitsNeedToSet <= 0) {
                         shiftedByte += ((uint8_t)expectedOverflowBit) << j;
                         if(!expectedOverflowBit) {
+                            secondLastZeroPos = lastZeroPos;
                             lastZeroPos = i*8 + j;
                         }
                         expectedOverflowBit = byte & 1;
@@ -423,6 +634,7 @@ namespace DynamicPrefixFilter {
                     else {
                         shiftedByte += (byte & 1) << j;
                         if((byte & 1) == 0) {
+                            secondLastZeroPos = lastZeroPos;
                             lastZeroPos = i*8 + j;
                         }
                     }
@@ -432,15 +644,21 @@ namespace DynamicPrefixFilter {
             }
             if(expectedOverflowBit) {
                 uint8_t* byteToChange = &expectedFilterBytes[0];
-                expectedOverflow = lastZeroPos - NumKeys;
+                expectedOverflow = lastZeroPos - NumKeys - FrontOffset;
                 for(size_t i{1}; lastZeroPos >= 8; lastZeroPos-=8, i++) {
                     byteToChange = &expectedFilterBytes[i];
                 }
                 *byteToChange |= 1 << lastZeroPos;
+                expectedFilterBytes[0] = (expectedFilterBytes[0] & (~BiggestMiniBucketMask)) + secondLastZeroPos - NumKeys - FrontOffset + 1; //fix this checking func or just ignore it entirely?
+            }
+            else if (countKeys() == NumKeys - 1) {
+                expectedFilterBytes[0] = (expectedFilterBytes[0] & (~BiggestMiniBucketMask)) + lastZeroPos - countKeys() - FrontOffset;
+                // std::cout << (int)(expectedFilterBytes[0] & BiggestMiniBucketMask) << " " << lastZeroPos << " " << countKeys() << " " << FrontOffset << std::endl;
             }
             std::uint64_t overflow = insert(miniBucketIndex, keyIndex);
+            // std::cout << (int)(filterBytes[0] & BiggestMiniBucketMask) <<" " << (int)(expectedFilterBytes[0] & BiggestMiniBucketMask) << " " << lastZeroPos << " " << countKeys() << " " << FrontOffset << std::endl;
             // std::cout << std::endl;
-            // printMiniFilter(filterBytes);
+            // printMiniFilter(filterBytes, true);
             // std::cout << std::endl;
             // std::cout << std::endl;
             // printMiniFilter(expectedFilterBytes, true);
@@ -459,6 +677,9 @@ namespace DynamicPrefixFilter {
             uint64_t totalPopcount = 0;
             for(uint8_t byte: filterBytes) {
                 totalPopcount += __builtin_popcountll(byte);
+            }
+            if constexpr (StoreMetadata) {
+                totalPopcount -= __builtin_popcountll(filterBytes[0] & (~firstSegmentMask));
             }
             assert(totalPopcount == NumMiniBuckets);
         }
