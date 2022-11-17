@@ -100,23 +100,34 @@ namespace DynamicPrefixFilter {
             return retval;
         }
 
+        // std::uint64_t queryInsertLocation(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> boundsMaskBits) {
+            
+        // }
+
         //fix this function
-        // std::uint_fast8_t insertOrdered(std::uint_fast8_t remainder, std::size_t boundsMask) {
+        // std::uint_fast8_t insertOrdered(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> boundsMaskBits) {
         //     if constexpr (DEBUG) {
         //         assert(loc < NumRemainders);
         //     }
-        //     boundsMask <<= Offset;
+            
+        //     std::uint64_t boundsMask = boundsMaskBits.second - boundsMask.first;
         //     std::uint_fast8_t retval = remainders[NumRemainders-1];
         //     //replace the and with compare?
-        //     if((boundsMask & (1ull << 63)) != 0 && remainder >= retval) {
-        //         return remainder;
-        //     }
+        //     // if((boundsMask & (1ull << (NumRemainders-1))) != 0 && remainder >= retval) {
+        //     //     return remainder;
+        //     // }
+
+        //     boundsMask <<= Offset;
 
         //     __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
         //     __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
-        //     __m512i packedStoreWithRemainder = _mm512_mask_set1_epi8(packedStore, 1, remainder);
-        //     packedStore = _mm512_mask_permutexvar_epi8(packedStore, StoreMask, shuffleVectors[loc], packedStoreWithRemainder);
-        //     _mm512_storeu_si512(nonOffsetAddr, packedStore);
+        //     std::uint64_t geqmask = _cvtmask64_u64(_mm512_mask_cmpge_epu8_mask()) | ;
+
+        //     // __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+        //     // __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
+        //     // __m512i packedStoreWithRemainder = _mm512_mask_set1_epi8(packedStore, 1, remainder);
+        //     // packedStore = _mm512_mask_permutexvar_epi8(packedStore, StoreMask, shuffleVectors[loc], packedStoreWithRemainder);
+        //     // _mm512_storeu_si512(nonOffsetAddr, packedStore);
 
         //     return retval;
         // }
@@ -154,9 +165,11 @@ namespace DynamicPrefixFilter {
             return retMask;
         }
 
-        std::uint64_t queryVectorizedMask(std::uint_fast8_t remainder, std::uint64_t mask) {
+        std::uint64_t queryVectorizedMask(std::uint_fast8_t remainder, std::uint64_t mask, void* nonOffsetAddrV = NULL) {
             // __mmask64 queryMask = _cvtu64_mask64(((1ull << bounds.second) - (1ull << bounds.first)) << Offset);
-            __m512i* nonOffsetAddr = getNonOffsetBucketAddress();
+            __m512i* nonOffsetAddr = (__m512i*) nonOffsetAddrV;
+            if (nonOffsetAddr == NULL)
+                nonOffsetAddr = getNonOffsetBucketAddress();
             __m512i packedStore = _mm512_loadu_si512(nonOffsetAddr);
             __m512i remainderVec = _mm512_maskz_set1_epi8(-1ull, remainder);
             return (_cvtmask64_u64(_mm512_mask_cmpeq_epu8_mask(-1ull, packedStore, remainderVec)) >> Offset) & mask;
@@ -415,7 +428,7 @@ namespace DynamicPrefixFilter {
             return store4BitPart.queryVectorizedMask(bits, mask);
         }
 
-        std::uint64_t queryVectorizedMask(std::uint_fast16_t remainder, std::uint64_t mask) {
+        std::uint64_t queryVectorizedMask(std::uint_fast16_t remainder, std::uint64_t mask, void* nonOffsetAddrV = NULL) {
             if constexpr (DEBUG) {
                 assert(remainder <= 4095);
             }

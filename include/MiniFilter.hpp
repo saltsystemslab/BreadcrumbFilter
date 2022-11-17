@@ -37,6 +37,8 @@ namespace DynamicPrefixFilter {
             }
         }
 
+
+        static constexpr bool FallOffInserts = false;
         static constexpr std::size_t WouldBeFrontOffset = clog(NumKeys) + 1;
         static constexpr bool StoreMetadata = false;
         // static constexpr bool StoreMetadata = (NumKeys + NumMiniBuckets <= 64) && ((TypeOfRemainderStoreTemplate<NumKeys, 0>::Size*8 + (NumKeys+NumMiniBuckets+WouldBeFrontOffset)) <= 32*8); //Need to configure later but for now this is all you get. Assumes 32 byte buckets, single word minifilter, and checks if can fit this extra data
@@ -44,7 +46,7 @@ namespace DynamicPrefixFilter {
         // static constexpr bool StoreLockBit = !StoreMetadata; //Add lock bit; storemetadata adds by default
         //Needs to store the largest bucket currently in the filter, so clog gives the number of bits needed for that. Extra bit is unecessary but due to way I designed the filter should? help with query times by removing the edge case of the minibucket being zero when queries by basically padding with an extra bit to never worry about that case. Will later be actually useful though, when we do locking, in which case we will just atomically set that bit & it thus serves a dual purpose!
         static constexpr std::size_t FrontOffset = StoreMetadata ? WouldBeFrontOffset: (StoreLockBit? 1 : 0); //Gonna assume this fits in a byte cause we generally assume <= 64 size buckets anyways. Makes some things easier to do that
-        static constexpr std::size_t FrontOffsetMinusOne = FrontOffset - 1;
+        static constexpr std::size_t FrontOffsetMinusOne = FrontOffset == 0 ? 0 : FrontOffset - 1;
         static constexpr std::size_t BiggestMiniBucketMask = (1ull << FrontOffsetMinusOne) - 1;
         // static_assert(FrontOffset == 0);
         static_assert((!StoreMetadata) || FrontOffset == 6);
@@ -119,6 +121,16 @@ namespace DynamicPrefixFilter {
             }
         }
 
+        bool checkDefBackyard(size_t miniBucketIndex) {
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            return full() && (miniBucketIndex > ((*fastCastFilter) & BiggestMiniBucketMask));
+        }
+
+        size_t getBiggestMiniBucket() {
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            return (*fastCastFilter) & BiggestMiniBucketMask;
+        }
+
         bool full() {
             if constexpr (NumBytes <= 8) {
                 uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
@@ -130,6 +142,9 @@ namespace DynamicPrefixFilter {
 
         std::size_t select(uint64_t filterSegment, uint64_t miniBucketSegmentIndex) {
             uint64_t isolateBit = _pdep_u64(1ull << miniBucketSegmentIndex, filterSegment);
+            if constexpr (FallOffInserts) { //Cause the isolate bit may be zero, in which case to maintain compatiblity we need to add the bit at the end
+                isolateBit |= 1ull << (NumBits - 1);
+            }
             // std::cout << miniBucketSegmentIndex << " " << isolateBit << std::endl;
             return __builtin_ctzll(isolateBit);
         }
@@ -153,9 +168,16 @@ namespace DynamicPrefixFilter {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
 
             if constexpr (StoreMetadata && NumBytes <= 8) {
-                std::uint64_t shiftedFilter = (*fastCastFilter) >> (FrontOffsetMinusOne);
-                // std::uint64_t shiftedFilter = (*fastCastFilter) & (~BiggestMiniBucketMask);
-                return std::make_pair(getKeyMask(shiftedFilter, miniBucketIndex), getKeyMask(shiftedFilter, miniBucketIndex+1));
+                // std::uint64_t shiftedFilter = (*fastCastFilter) >> (FrontOffsetMinusOne);
+                // // std::uint64_t shiftedFilter = (*fastCastFilter) & (~BiggestMiniBucketMask);
+                // return std::make_pair(getKeyMask(shiftedFilter, miniBucketIndex), getKeyMask(shiftedFilter, miniBucketIndex+1));
+                std::uint64_t shiftedFilter = (*fastCastFilter) >> (FrontOffset);
+                if(miniBucketIndex == 0) {
+                    return std::make_pair(1, getKeyMask(shiftedFilter, miniBucketIndex));
+                }
+                else {
+                    return std::make_pair(getKeyMask(shiftedFilter, miniBucketIndex-1), getKeyMask(shiftedFilter, miniBucketIndex));
+                }
             }
 
             if constexpr (StoreLockBit && NumBytes <= 8) {
@@ -492,6 +514,27 @@ namespace DynamicPrefixFilter {
             // if(keyIndex == NumKeys) return NumKeys;
             // std::size_t bitIndex = miniBucketIndex + keyIndex;
             std::size_t bitIndex = miniBucketIndex + keyIndex + FrontOffset;
+
+            // if constexpr (NumBytes <= 8 && FallOffInserts) {
+            //     // std::cout << bitIndex << " " << miniBucketIndex << " " << keyIndex << " " << FrontOffset << std::endl;
+            //     assert(bitIndex < NumBits);
+            //     static_assert(StoreLockBit); //For now
+            //     // bool startedFull = full(); //means overflow
+            //     uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            //     // std::cout << fastCastFilter << std::endl;
+            //     uint64_t shiftmask = (~((1ull << bitIndex) - 1));
+            //     uint64_t shiftmaskWOBit = shiftmask & combinedSegmentMaskWOLastBit;
+            //     uint64_t shiftmaskWBit = shiftmask & combinedSegmentMask;
+            //     *fastCastFilter = (((*fastCastFilter) & shiftmaskWOBit) << 1) | ((*fastCastFilter) & (~shiftmaskWBit));
+            //     if (startedFull) {
+            //         std::uint64_t NumBucketsLeft = __builtin_popcountll((*fastCastFilter) & combinedSegmentMask); //This is actually the minibucket that we are in!
+            //         // if (NumBucketsLeft < NumMiniBuckets)
+            //         return NumBucketsLeft - 1; // To account for the one bit of storelockbit
+            //     }
+            //     return -1ull;
+            //     // return startedFull;
+            // }
+
             if constexpr (DEBUG) assert(bitIndex < NumBits);
             if constexpr (StoreMetadata) {
                 uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
@@ -526,6 +569,9 @@ namespace DynamicPrefixFilter {
                 uint64_t shiftMask = (-(shiftBitIndex)) & lastSegmentMask;
                 uint64_t shiftedSegment = ((*fastCastFilter) & shiftMask) >> 1;
                 *fastCastFilter = (*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask);
+                if constexpr (FallOffInserts) {
+                    *fastCastFilter |= 1ull << (NumBits - 1); //I think this works?
+                }
             }
             else if (NumBytes > 8 && NumBytes <= 16) {
                 __m128i* castedFilterAddress = reinterpret_cast<__m128i*>(&filterBytes);
@@ -580,8 +626,9 @@ namespace DynamicPrefixFilter {
             uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes));
             if constexpr (NumBytes <= 8) {
                 std::size_t keyBucketLoc = keyBit << miniBucket;
-                std::size_t pcnt = __builtin_popcountll((keyBucketLoc-1) & (*fastCastFilter));
-                if (pcnt == miniBucket && (keyBucketLoc & (*fastCastFilter)) == 0) {
+                std::size_t shiftedFilter = (*fastCastFilter) >> FrontOffset;
+                std::size_t pcnt = __builtin_popcountll((keyBucketLoc-1) & shiftedFilter);
+                if (pcnt == miniBucket && (keyBucketLoc & shiftedFilter) == 0) {
                     return 1;
                 }
                 // else if (miniBucketOutofFilterBounds(miniBucket)){
