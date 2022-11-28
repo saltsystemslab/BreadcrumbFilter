@@ -318,7 +318,7 @@ int main(int argc, char* argv[]) {
     random_device rd;
     mt19937 generator (rd());
 
-    size_t N = 1ull << 30;
+    size_t N = 1ull << 28;
     if(argc > 1) {
         N = (1ull << atoi(argv[1]));
     }
@@ -327,8 +327,8 @@ int main(int argc, char* argv[]) {
         NumTests = atoi(argv[2]);
     }
     FilterTester ft;
-    constexpr size_t DelayBetweenTests = 0; //really should be like subtest
-    constexpr size_t DelayBetweenFilters = 0;
+    constexpr size_t DelayBetweenTests = 5; //really should be like subtest
+    constexpr size_t DelayBetweenFilters = 15;
 
     // using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
     // ft.addTest("Prefix filter TC", [&] () -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
@@ -352,7 +352,7 @@ int main(int argc, char* argv[]) {
     // using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
     // ft.addTest("BBF-Flex", [&] () -> TestResult {return benchFilter<BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
-    ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     ft.addTest("DPF(22, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});

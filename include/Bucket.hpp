@@ -51,25 +51,42 @@ namespace DynamicPrefixFilter {
 
         //Return 1 if found it, 2 if need to go to backyard, 0 if didn't find and don't need to go to backyard
         std::uint64_t query(TypeOfQRContainer qr) {
+            // static double count = 0.0;
+            // static double fullCount = 0.0;
+            // static double backCount = 0.0;
+            // count ++;
+            // fullCount += miniFilter.full();
+            // backCount += miniFilter.full() && (miniFilter.getBiggestMiniBucket() < qr.miniBucketIndex);
+            // assert(miniFilter.getBiggestMiniBucket() != 0 || (!miniFilter.full()));
+            // std::cout << (fullCount / count) << ' ' << (backCount / count) << miniFilter.getBiggestMiniBucket() << std::endl;
             // if(miniFilter.checkDefBackyard(qr.miniBucketIndex)) {
-            //     return 2;
+            //     return 1;
             // }
-            std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
-            // if(boundsMask.first == 0) return 2;
-            // std::cout << "Querying: ";
-            // printBinaryUInt64(boundsMask.first);
-            // std::cout << ", ";
-            // printBinaryUInt64(boundsMask.second);
-            // std::cout << std::endl;
-            // std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first, (void*)this);
-            std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
-            if(inFilter != 0)
-                return 1;
-            else if (boundsMask.second == 1ull << NumKeys) [[unlikely]] {
-                return 2;
+            if constexpr (TypeOfRemainderStore::Size == NumKeys) {
+                std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+                // if(boundsMask.first == 0) return 2;
+                // std::cout << "Querying: ";
+                // printBinaryUInt64(boundsMask.first);
+                // std::cout << ", ";
+                // printBinaryUInt64(boundsMask.second);
+                // std::cout << std::endl;
+                // std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first, (void*)this);
+                std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
+                if(inFilter != 0)
+                    return 1;
+                else if (boundsMask.second == 1ull << NumKeys) [[unlikely]] {
+                    return 2;
+                }
+                // if(inFilter != 0 || boundsMask.second == 1ull << NumKeys)
+                //     return 1;
+                else {
+                    return 0;
+                }
             }
             else {
-                return 0;
+                // std::uint64_t inFilter = remainderStore.store8BitPart.queryVectorizedMask(qr.remainder, -1ull);
+                std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, -1ull);
+                return inFilter != 0;
             }
         }
         

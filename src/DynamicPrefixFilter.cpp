@@ -8,7 +8,7 @@ using namespace DynamicPrefixFilter;
 
 // template class DynamicPrefixFilter8Bit<46, 51, 16, 8, 64, 32>; //These fail for obvious reasons, but I wanted to try anyways
 // template class DynamicPrefixFilter8Bit<46, 51, 16, 7, 64, 32>;
-template class DynamicPrefixFilter8Bit<46, 51, 35, 8, 64, 64>;
+// template class DynamicPrefixFilter8Bit<46, 51, 35, 8, 64, 64>;
 // template class DynamicPrefixFilter8Bit<48, 51, 35, 8, 64, 64>;
 // template class DynamicPrefixFilter8Bit<49, 51, 35, 8, 64, 64>;
 // template class DynamicPrefixFilter8Bit<51, 51, 35, 8, 64, 64>;

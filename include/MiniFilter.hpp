@@ -40,8 +40,9 @@ namespace DynamicPrefixFilter {
 
         static constexpr bool FallOffInserts = false;
         static constexpr std::size_t WouldBeFrontOffset = clog(NumKeys) + 1;
-        static constexpr bool StoreMetadata = false;
-        // static constexpr bool StoreMetadata = (NumKeys + NumMiniBuckets <= 64) && ((TypeOfRemainderStoreTemplate<NumKeys, 0>::Size*8 + (NumKeys+NumMiniBuckets+WouldBeFrontOffset)) <= 32*8); //Need to configure later but for now this is all you get. Assumes 32 byte buckets, single word minifilter, and checks if can fit this extra data
+        // static constexpr bool StoreMetadata = false;
+        static constexpr bool StoreMetadata = (NumKeys + NumMiniBuckets <= 64) && ((TypeOfRemainderStoreTemplate<NumKeys, 0>::Size*8 + (NumKeys+NumMiniBuckets+WouldBeFrontOffset)) <= 32*8); //Need to configure later but for now this is all you get. Assumes 32 byte buckets, single word minifilter, and checks if can fit this extra data
+        static_assert(StoreMetadata);
         static constexpr bool StoreLockBit = false;
         // static constexpr bool StoreLockBit = !StoreMetadata; //Add lock bit; storemetadata adds by default
         //Needs to store the largest bucket currently in the filter, so clog gives the number of bits needed for that. Extra bit is unecessary but due to way I designed the filter should? help with query times by removing the edge case of the minibucket being zero when queries by basically padding with an extra bit to never worry about that case. Will later be actually useful though, when we do locking, in which case we will just atomically set that bit & it thus serves a dual purpose!
@@ -123,7 +124,7 @@ namespace DynamicPrefixFilter {
 
         bool checkDefBackyard(size_t miniBucketIndex) {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
-            return full() && (miniBucketIndex > ((*fastCastFilter) & BiggestMiniBucketMask));
+            return full() && (miniBucketIndex >= ((*fastCastFilter) & BiggestMiniBucketMask));
         }
 
         size_t getBiggestMiniBucket() {
