@@ -30,12 +30,12 @@ namespace DynamicPrefixFilter {
         //Return 1 if found it, 2 if need to go to backyard, 0 if didn't find and don't need to go to backyard
         std::uint64_t query(TypeOfQRContainer qr) {
             std::pair<std::uint64_t, std::uint64_t> boundsMask = miniFilter.queryMiniBucketBoundsMask(qr.miniBucketIndex);
+            if(boundsMask.second == (1ull << NumKeys)){
+                return 1;
+            }
             std::uint64_t inFilter = remainderStore.queryVectorizedMask(qr.remainder, boundsMask.second - boundsMask.first);
             if(inFilter != 0)
                 return 1;
-            else if (boundsMask.second == (1ull << NumKeys)) {
-                return 2;
-            }
             else {
                 return 0;
             }
