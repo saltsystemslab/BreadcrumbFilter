@@ -10,7 +10,7 @@
 #include "RemainderStore.hpp"
 
 namespace DynamicPrefixFilter {
-    template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity = 51, std::size_t BackyardBucketCapacity = 35, std::size_t FrontyardToBackyardRatio = 8, std::size_t FrontyardBucketSize = 64, std::size_t BackyardBucketSize = 64>
+    template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity = 51, std::size_t BackyardBucketCapacity = 35, std::size_t FrontyardToBackyardRatio = 8, std::size_t FrontyardBucketSize = 64, std::size_t BackyardBucketSize = 64, bool Threaded=false>
     class DynamicPrefixFilter8Bit {
         static_assert(FrontyardBucketSize == 32 || FrontyardBucketSize == 64);
         static_assert(BackyardBucketSize == 32 || BackyardBucketSize == 64);
@@ -31,12 +31,12 @@ namespace DynamicPrefixFilter {
 
         private:
             using FrontyardQRContainerType = FrontyardQRContainer<BucketNumMiniBuckets>;
-            using FrontyardBucketType = Bucket<FrontyardBucketCapacity, BucketNumMiniBuckets, RemainderStore8Bit, FrontyardQRContainer, FrontyardBucketSize>;
+            using FrontyardBucketType = Bucket<FrontyardBucketCapacity, BucketNumMiniBuckets, RemainderStore8Bit, FrontyardQRContainer, FrontyardBucketSize, Threaded>;
             static_assert(sizeof(FrontyardBucketType) == FrontyardBucketSize);
             using BackyardQRContainerType = BackyardQRContainer<BucketNumMiniBuckets, 8, FrontyardToBackyardRatio>;
             template<size_t NumMiniBuckets>
             using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, 8, FrontyardToBackyardRatio>;
-            using BackyardBucketType = Bucket<BackyardBucketCapacity, BucketNumMiniBuckets, RemainderStore12Bit, WrappedBackyardQRContainerType, BackyardBucketSize>;
+            using BackyardBucketType = Bucket<BackyardBucketCapacity, BucketNumMiniBuckets, RemainderStore12Bit, WrappedBackyardQRContainerType, BackyardBucketSize, Threaded>;
             static_assert(sizeof(BackyardBucketType) == BackyardBucketSize);
             
             std::vector<FrontyardBucketType> frontyard;
