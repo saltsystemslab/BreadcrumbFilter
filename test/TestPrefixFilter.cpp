@@ -120,10 +120,10 @@ void testFilter(mt19937 generator, size_t N) {
     cout << ms << "ms for removing all the keys, or " << (ms * 1e6 / N) << "ns per removal" << endl;
 }
 
-template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool Threaded=false>
 void testDPF(mt19937 generator, size_t N) {
     cout << "Testing DPF with params: " << BucketNumMiniBuckets << ", " << FrontyardBucketCapacity<< ", " << BackyardBucketCapacity << ", " << FrontyardToBackyardRatio << ", " << FrontyardBucketSize << " " << BackyardBucketSize << endl;
-    testFilter<DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>>(generator, N);
+    testFilter<DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, Threaded>>(generator, N);
 }
 
 template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
@@ -159,9 +159,9 @@ int main(int argc, char* argv[]) {
     // testDPF<46, 51, 35, 8, 64, 64>(generator, N);
     // testDPF<48, 51, 35, 8, 64, 64>(generator, N);
     // testDPF<51, 51, 35, 8, 64, 64>(generator, N);
-    // testDPF<22, 25, 17, 8, 32, 32>(generator, N);
+    testDPF<22, 25, 17, 8, 32, 32, true>(generator, N);
     // testDPF<25, 25, 17, 4, 32, 32>(generator, N);
-    testDPF<25, 25, 17, 4, 32, 32>(generator, N);
+    // testDPF<25, 25, 17, 4, 32, 32>(generator, N);
     // testDPF<25, 25, 17, 8, 32, 32>(generator, N);
 
 }

@@ -7,7 +7,7 @@
 
 namespace DynamicPrefixFilter {
     constexpr bool DEBUG = false;
-    constexpr bool PARTIAL_DEBUG = false;
+    constexpr bool PARTIAL_DEBUG = true;
 
     struct alignas(16) m128iWrapper {
         static constexpr __m128i zero = {0, 0};

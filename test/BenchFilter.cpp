@@ -24,6 +24,7 @@ struct TestResult { //Times are all in microseconds for running not one test but
     double insertTime;
     double successfulQueryTime;
     double randomQueryTime;
+    double mostlyRandomQueryTime;
     double falsePositiveRate;
     double removeTime;
     double ratio;
@@ -31,9 +32,44 @@ struct TestResult { //Times are all in microseconds for running not one test but
     size_t N;
 };
 
+template<typename FT>
+void insertItems(FT& filter, vector<size_t> keys, size_t start, size_t end) {
+    std::cout << "start: " << start << ", end: " << end << std::endl;
+    for(size_t i{start}; i < end; i++) {
+        filter.insert(keys[i]);
+    }
+}
+
+template<typename FT>
+void checkQuery(FT& filter, vector<size_t>& keys, size_t start, size_t end) {
+    for(size_t i{start}; i < end; i++) {
+        if(!filter.query(keys[i])) {
+            cerr << "Query on " << keys[i] << " failed." << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+template<typename FT>
+size_t getNumFalsePositives(FT& filter, vector<size_t>& FPRkeys, size_t start, size_t end) {
+    uint64_t fpr = 0;
+    for(size_t i{start}; i < end; i++) {
+        fpr += filter.query(FPRkeys[i]);
+    }
+    return fpr;
+}
+
+template<typename FT>
+void removeItems(FT& filter, vector<size_t>& keys, size_t start, size_t end) {
+    for(size_t i{start}; i < end; i++) {
+        // assert(filter.remove(keys[i]));
+        filter.remove(keys[i]);
+    }
+}
+
 //max ratio is the ratio of how much space you make for filter items to how many items you actually insert
 template<typename FT, bool CanDelete = true>
-TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayBetweenTests) {
+TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayBetweenTests, size_t numThreads=1) {
     TestResult res;
     res.N = N;
     res.ratio = ratio;
@@ -52,8 +88,21 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayB
 
 
     auto start = chrono::high_resolution_clock::now();
-    for(size_t i{0}; i < N; i++) {
-        filter.insert(keys[i]);
+    // for(size_t i{0}; i < N; i++) {
+    //     filter.insert(keys[i]);
+    // }
+    if (numThreads > 1) {
+        std::vector<std::thread> threads;
+        for(size_t i = 0; i < numThreads; i++) {
+            std::cout << i << std::endl;
+            threads.push_back(std::thread([&, i] () -> void {insertItems(filter, keys, (i*N) / numThreads, ((i+1)*N) / numThreads);}));
+        }
+        for(auto& th: threads) {
+            th.join();
+        }
+    }
+    else {
+        insertItems(filter, keys, 0, N);
     }
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end-start);
@@ -62,36 +111,58 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayB
 
     start = chrono::high_resolution_clock::now(); 
     // uint64_t x = 0;
-    for(size_t i{0}; i < N; i++) {
-        if(!filter.query(keys[i])) {
-            cerr << "Query on " << keys[i] << " failed." << endl;
-            exit(EXIT_FAILURE);
-        }
-        // x += filter.query(keys[i]);
-    }
+    // for(size_t i{0}; i < N; i++) {
+    //     if(!filter.query(keys[i])) {
+    //         cerr << "Query on " << keys[i] << " failed." << endl;
+    //         exit(EXIT_FAILURE);
+    //     }
+    //     // x += filter.query(keys[i]);
+    // }
     // cout << x << endl;
+    checkQuery(filter, keys, 0, N);
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);
     res.successfulQueryTime = (double)duration.count();
     this_thread::sleep_for(chrono::seconds(delayBetweenTests));
 
     start = chrono::high_resolution_clock::now();
-    uint64_t fpr = 0;
-    for(size_t i{0}; i < N; i++) {
-        fpr += filter.query(FPRkeys[i]);
-    }
+    // uint64_t fpr = 0;
+    // for(size_t i{0}; i < N; i++) {
+    //     fpr += filter.query(FPRkeys[i]);
+    // }
+    uint64_t fpr = getNumFalsePositives(filter, FPRkeys, 0, N);
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end-start);
     res.randomQueryTime = (double)duration.count();
     res.falsePositiveRate = ((double)fpr) / N;
     this_thread::sleep_for(chrono::seconds(delayBetweenTests));
 
+    // start = chrono::high_resolution_clock::now();
+    // uint64_t fpr = 0;
+    // for(size_t i{0}; i < N; i++) {
+    //     if((i & 7) == 0) {
+    //         if(!filter.query(keys[i])) {
+    //             cerr << "Query on " << keys[i] << " failed." << endl;
+    //             exit(EXIT_FAILURE);
+    //         }
+    //     }
+    //     else {
+    //         fpr += filter.query(FPRkeys[i]);
+    //     }
+    // }
+    // end = chrono::high_resolution_clock::now();
+    // duration = chrono::duration_cast<chrono::microseconds>(end-start);
+    // res.randomQueryTime = (double)duration.count();
+    // res.falsePositiveRate = ((double)fpr) * 8 / (7*N);
+    // this_thread::sleep_for(chrono::seconds(delayBetweenTests));
+
     if constexpr (CanDelete) {
         start = chrono::high_resolution_clock::now();
-        for(size_t i{0}; i < N; i++) {
-            // assert(filter.remove(keys[i]));
-            filter.remove(keys[i]);
-        }
+        // for(size_t i{0}; i < N; i++) {
+        //     // assert(filter.remove(keys[i]));
+        //     filter.remove(keys[i]);
+        // }
+        removeItems(filter, keys, 0, N);
         end = chrono::high_resolution_clock::now();
         duration = chrono::duration_cast<chrono::microseconds>(end-start);
         res.removeTime = (double)duration.count();
@@ -103,10 +174,10 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayB
     return res;
 }
 
-template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize>
-TestResult benchDPF(mt19937& generator, size_t N, size_t delayBetweenTests) {
-    using FilterType = DynamicPrefixFilter::DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize>;
-    return benchFilter<FilterType, true>(generator, N, 1.0, delayBetweenTests);
+template<std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool Threaded=false>
+TestResult benchDPF(mt19937& generator, size_t N, size_t delayBetweenTests, size_t numThreads=1) {
+    using FilterType = DynamicPrefixFilter::DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, Threaded>;
+    return benchFilter<FilterType, true>(generator, N, 1.0, delayBetweenTests, numThreads);
 }
 
 class FilterTester {
@@ -338,8 +409,8 @@ int main(int argc, char* argv[]) {
     // using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
     // ft.addTest("Prefix filter CF-12-Flex", [&] () -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
-    // using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
-    // ft.addTest("Prefix filter BBF-Flex", [&] () -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
+    using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+    ft.addTest("Prefix filter BBF-Flex", [&] () -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
     // using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
     // ft.addTest("TC", [&] () -> TestResult {return benchFilter<TC_Wrapper, true>(generator, N, 1.0, DelayBetweenTests);});
@@ -355,12 +426,14 @@ int main(int argc, char* argv[]) {
     // ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
+    ft.addTest("DPF(22, 25, 17, 8, 32, 32, false)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, false>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32, true)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests);});
+    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 2);});
     // ft.addTest("DPF(23, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(24, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(24, 25, 17, 6, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 6, 32, 32>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(25, 25, 17, 4, 32, 32)", [&] () -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, N, DelayBetweenTests);});
-    // ft.addTest("VQF 85\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.85, DelayBetweenTests);});
+    ft.addTest("VQF 85\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.85, DelayBetweenTests);});
     // ft.addTest("VQF 90\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.90, DelayBetweenTests);});
 
     ft.runAll(NumTests, DelayBetweenFilters);
