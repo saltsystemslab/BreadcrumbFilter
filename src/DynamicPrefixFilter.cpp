@@ -66,11 +66,11 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
     
     //FIX THE ISSUE OF HAVING TWO LOCKS PER CACHELINE!!!! Not as trivial as sounds, unless can simple make the vector allocate aligned to 64 bytes.
     if constexpr (Threaded) {
-        // std::cout << "trying to lock frontyard " << i << std::endl;
+        // std::cout << "tl" << i << std::endl;
         // std::cout << "tf" << std::endl;
         frontyard[i & frontyardLockCachelineMask].lock();
         // std::cout << "tfd" << std::endl;
-        // std::cout << "locked" << std::endl;
+        // std::cout << "l" << i << std::endl;
     }
 
 }
@@ -83,7 +83,7 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
     
     if constexpr (Threaded) {
         frontyard[i & frontyardLockCachelineMask].unlock();
-        // std::cout << "unlocked frontyard " << i << std::endl;
+        // std::cout << "u" << i << std::endl;
     }
 
 }
@@ -96,15 +96,15 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
     if constexpr (Threaded) {
         i1 &= backyardLockCachelineMask;
         i2 &= backyardLockCachelineMask;
+        std::cout << "tlb" << std::endl;
         if (i1 == i2) { 
             backyard[i1].lock();
             return;
         }
         if (i1 > i2) std::swap(i1, i2);
-        // std::cout << "tl" << std::endl;
         backyard[i1].lock();
         backyard[i2].lock();
-        // std::cout << "tlr" << std::endl;
+        std::cout << "tlbr" << std::endl;
     }
 
 }
@@ -174,16 +174,16 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
     std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
     
     if(fillOfFirstBackyardBucket < fillOfSecondBackyardBucket) {
-        // if constexpr (PARTIAL_DEBUG || DEBUG)
-        //     assert(backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull); //Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
-        // else 
+        if constexpr (PARTIAL_DEBUG || DEBUG)
+            assert(backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull); //Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
+        else 
             backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR);
         // assert(query(hash));
     }
     else {
-        // if constexpr (PARTIAL_DEBUG || DEBUG)
-        //     assert(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull);
-        // else
+        if constexpr (PARTIAL_DEBUG || DEBUG)
+            assert(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull);
+        else
             backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR);
         // assert(query(hash));
     }
@@ -369,8 +369,13 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
 
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     lockFrontyard(frontyardQR.bucketIndex);
+    size_t i = frontyardQR.bucketIndex;
+    frontyard[frontyardQR.bucketIndex & frontyardLockCachelineMask].miniFilter.assertLocked();
 
     insertInner(frontyardQR);
+
+    assert(i == frontyardQR.bucketIndex);
+    frontyard[frontyardQR.bucketIndex & frontyardLockCachelineMask].miniFilter.assertLocked();
 
     unlockFrontyard(frontyardQR.bucketIndex);
 }

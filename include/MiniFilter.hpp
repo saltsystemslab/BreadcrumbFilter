@@ -78,6 +78,20 @@ namespace DynamicPrefixFilter {
             // std::cout << "locked!" << std::endl;
         }
 
+        void assertLocked() {
+            if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
+                uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
+                assert(((*fastCastFilter) & LockMask) != 0);
+            }
+        }
+
+        void assertUnlocked() {
+            if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
+                uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
+                assert(((*fastCastFilter) & LockMask) == 0);
+            }
+        }
+
         void unlock() {
             uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
             if constexpr (!Threaded) return;
@@ -326,22 +340,10 @@ namespace DynamicPrefixFilter {
                 x = countKeys();
             }
             if constexpr (DEBUG) assert(keyIndex != NumBits);
-            if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
-                uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
-                assert(((*fastCastFilter) & LockMask) != 0);
-            }
             std::size_t bitIndex = miniBucketIndex + keyIndex;
             bool overflow = shiftFilterBits(bitIndex);
-            if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
-                uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
-                assert(((*fastCastFilter) & LockMask) != 0);
-            }
             if (overflow) {
                 uint64_t retval = fixOverflow();
-                if constexpr ((DEBUG || PARTIAL_DEBUG) && Threaded) {
-                    uint64_t* fastCastFilter = (reinterpret_cast<uint64_t*> (&filterBytes)) + NumUllongs-1;
-                    assert(((*fastCastFilter) & LockMask) != 0);
-                }
                 return retval;
             }
             if constexpr (DEBUG) {

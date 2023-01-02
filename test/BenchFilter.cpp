@@ -409,8 +409,8 @@ int main(int argc, char* argv[]) {
     // using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
     // ft.addTest("Prefix filter CF-12-Flex", [&] () -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
-    using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
-    ft.addTest("Prefix filter BBF-Flex", [&] () -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
+    // using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+    // ft.addTest("Prefix filter BBF-Flex", [&] () -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
     // using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
     // ft.addTest("TC", [&] () -> TestResult {return benchFilter<TC_Wrapper, true>(generator, N, 1.0, DelayBetweenTests);});
@@ -426,7 +426,7 @@ int main(int argc, char* argv[]) {
     // ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32, false)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, false>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32, false)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, false>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(22, 25, 17, 8, 32, 32, true)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests);});
     ft.addTest("DPF(22, 25, 17, 8, 32, 32, true)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 2);});
     // ft.addTest("DPF(23, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
