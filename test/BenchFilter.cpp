@@ -34,7 +34,7 @@ struct TestResult { //Times are all in microseconds for running not one test but
 
 template<typename FT>
 void insertItems(FT& filter, vector<size_t> keys, size_t start, size_t end) {
-    std::cout << "start: " << start << ", end: " << end << std::endl;
+    // std::cout << "start: " << start << ", end: " << end << std::endl;
     for(size_t i{start}; i < end; i++) {
         filter.insert(keys[i]);
     }
@@ -94,7 +94,7 @@ TestResult benchFilter(mt19937& generator, size_t N, double ratio, size_t delayB
     if (numThreads > 1) {
         std::vector<std::thread> threads;
         for(size_t i = 0; i < numThreads; i++) {
-            std::cout << i << std::endl;
+            // std::cout << i << std::endl;
             threads.push_back(std::thread([&, i] () -> void {insertItems(filter, keys, (i*N) / numThreads, ((i+1)*N) / numThreads);}));
         }
         for(auto& th: threads) {
@@ -426,9 +426,12 @@ int main(int argc, char* argv[]) {
     // ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    // ft.addTest("DPF(22, 25, 17, 8, 32, 32, false)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, false>(generator, N, DelayBetweenTests);});
+    ft.addTest("DPF(22, 25, 17, 8, 32, 32, false)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, false>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(22, 25, 17, 8, 32, 32, true)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 2);});
+    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 2)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 2);});
+    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 4)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 4);});
+    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 8)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 8);});
+    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 16)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 16);});
     // ft.addTest("DPF(23, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(24, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
     // ft.addTest("DPF(24, 25, 17, 6, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 6, 32, 32>(generator, N, DelayBetweenTests);});

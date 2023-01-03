@@ -96,7 +96,7 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
     if constexpr (Threaded) {
         i1 &= backyardLockCachelineMask;
         i2 &= backyardLockCachelineMask;
-        std::cout << "tlb" << std::endl;
+        // std::cout << "tlb" << std::endl;
         if (i1 == i2) { 
             backyard[i1].lock();
             return;
@@ -104,7 +104,7 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
         if (i1 > i2) std::swap(i1, i2);
         backyard[i1].lock();
         backyard[i2].lock();
-        std::cout << "tlbr" << std::endl;
+        // std::cout << "tlbr" << std::endl;
     }
 
 }
@@ -369,13 +369,13 @@ void DynamicPrefixFilter8Bit<BucketNumMiniBuckets, FrontyardBucketCapacity, Back
 
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     lockFrontyard(frontyardQR.bucketIndex);
-    size_t i = frontyardQR.bucketIndex;
-    frontyard[frontyardQR.bucketIndex & frontyardLockCachelineMask].miniFilter.assertLocked();
+    // size_t i = frontyardQR.bucketIndex;
+    // frontyard[frontyardQR.bucketIndex & frontyardLockCachelineMask].miniFilter.assertLocked();
 
     insertInner(frontyardQR);
 
-    assert(i == frontyardQR.bucketIndex);
-    frontyard[frontyardQR.bucketIndex & frontyardLockCachelineMask].miniFilter.assertLocked();
+    // assert(i == frontyardQR.bucketIndex);
+    // frontyard[frontyardQR.bucketIndex & frontyardLockCachelineMask].miniFilter.assertLocked();
 
     unlockFrontyard(frontyardQR.bucketIndex);
 }
