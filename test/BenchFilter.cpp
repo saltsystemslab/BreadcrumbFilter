@@ -441,46 +441,46 @@ int main(int argc, char* argv[]) {
         NumTests = atoi(argv[2]);
     }
     FilterTester ft;
-    constexpr size_t DelayBetweenTests = 120; //really should be like subtest
-    constexpr size_t DelayBetweenFilters = 45;
+    constexpr size_t DelayBetweenTests = 0; //really should be like subtest
+    constexpr size_t DelayBetweenFilters = 0;
 
-    using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
-    ft.addTest("Prefix filter TC", [&] () -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
-    ft.addTest("Prefix filter TC 95\% Full", [&] () -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, N, 0.95, DelayBetweenTests);});
+    // using PF_TC_Wrapper = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
+    // ft.addTest("Prefix filter TC", [&] () -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
+    // ft.addTest("Prefix filter TC 95\% Full", [&] () -> TestResult {return benchFilter<PF_TC_Wrapper, false>(generator, N, 0.95, DelayBetweenTests);});
 
-    using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
-    using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
-    ft.addTest("Prefix filter CF-12-Flex", [&] () -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
+    // using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+    // using PF_CFF12_Wrapper = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex, sizeCFF>>;
+    // ft.addTest("Prefix filter CF-12-Flex", [&] () -> TestResult {return benchFilter<PF_CFF12_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
-    using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
-    ft.addTest("Prefix filter BBF-Flex", [&] () -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
+    // using PF_BBFF_Wrapper = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+    // ft.addTest("Prefix filter BBF-Flex", [&] () -> TestResult {return benchFilter<PF_BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
-    using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
-    ft.addTest("TC", [&] () -> TestResult {return benchFilter<TC_Wrapper, true>(generator, N, 1.0, DelayBetweenTests);});
-    ft.addTest("TC 95\% of max capacity", [&] () -> TestResult {return benchFilter<TC_Wrapper, true>(generator, N, 0.95, DelayBetweenTests);});
-    ft.addTest("TC 90\% of max capacity", [&] () -> TestResult {return benchFilter<TC_Wrapper, true>(generator, N, 0.90, DelayBetweenTests);});
+    // using TC_Wrapper = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
+    // ft.addTest("TC", [&] () -> TestResult {return benchFilter<TC_Wrapper, true>(generator, N, 1.0, DelayBetweenTests);});
+    // ft.addTest("TC 95\% of max capacity", [&] () -> TestResult {return benchFilter<TC_Wrapper, true>(generator, N, 0.95, DelayBetweenTests);});
+    // ft.addTest("TC 90\% of max capacity", [&] () -> TestResult {return benchFilter<TC_Wrapper, true>(generator, N, 0.90, DelayBetweenTests);});
 
-    using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
-    ft.addTest("CF-12-Flex", [&] () -> TestResult {return benchFilter<CFF12_Wrapper, true>(generator, N, 1.0, DelayBetweenTests);});
+    // using CFF12_Wrapper = PFFilterAPIWrapper<CF12_Flex, sizeCFF, true>;
+    // ft.addTest("CF-12-Flex", [&] () -> TestResult {return benchFilter<CFF12_Wrapper, true>(generator, N, 1.0, DelayBetweenTests);});
 
-    using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
-    ft.addTest("BBF-Flex", [&] () -> TestResult {return benchFilter<BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
+    // using BBFF_Wrapper = PFFilterAPIWrapper<SimdBlockFilterFixed<>, sizeBBFF>;
+    // ft.addTest("BBF-Flex", [&] () -> TestResult {return benchFilter<BBFF_Wrapper, false>(generator, N, 1.0, DelayBetweenTests);});
 
-    ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF Matched to VQF 85 (46, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<46, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF Matched to VQF 90 (49, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<49, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(51, 51, 35, 8, 64, 64)", [&] () -> TestResult {return benchDPF<51, 51, 35, 8, 64, 64>(generator, N, DelayBetweenTests);});
     ft.addTest("DPF(22, 25, 17, 8, 32, 32, false)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, false>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 2)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 2);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 4)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 4);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 8)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 8);});
-    ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 16)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 16);});
-    ft.addTest("DPF(23, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(24, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(24, 25, 17, 6, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 6, 32, 32>(generator, N, DelayBetweenTests);});
-    ft.addTest("DPF(25, 25, 17, 4, 32, 32)", [&] () -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, N, DelayBetweenTests);});
-    ft.addTest("VQF 85\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.85, DelayBetweenTests);});
-    ft.addTest("VQF 90\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.90, DelayBetweenTests);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32, true)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 2)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 2);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 4)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 4);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 8)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 8);});
+    // ft.addTest("DPF(22, 25, 17, 8, 32, 32, true, 16)", [&] () -> TestResult {return benchDPF<22, 25, 17, 8, 32, 32, true>(generator, N, DelayBetweenTests, 16);});
+    // ft.addTest("DPF(23, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<23, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
+    // // ft.addTest("DPF(24, 25, 17, 8, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 8, 32, 32>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(24, 25, 17, 6, 32, 32)", [&] () -> TestResult {return benchDPF<24, 25, 17, 6, 32, 32>(generator, N, DelayBetweenTests);});
+    // ft.addTest("DPF(25, 25, 17, 4, 32, 32)", [&] () -> TestResult {return benchDPF<25, 25, 17, 4, 32, 32>(generator, N, DelayBetweenTests);});
+    // ft.addTest("VQF 85\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.85, DelayBetweenTests);});
+    // ft.addTest("VQF 90\% Full", [&] () -> TestResult {return benchFilter<VQFWrapper>(generator, N, 0.90, DelayBetweenTests);});
 
     ft.runAll(NumTests, DelayBetweenFilters);
 }
