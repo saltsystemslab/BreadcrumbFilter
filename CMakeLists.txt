@@ -15,7 +15,7 @@ check_ipo_supported(RESULT supported OUTPUT error)
 
 set(DPF_FILES 
     src/DynamicPrefixFilter.cpp src/TestUtility include/Bucket.hpp include/DynamicPrefixFilter.hpp
-    include/MiniFilter.hpp include/QRContainers.hpp include/RemainderStore)
+    include/MiniFilter.hpp include/QRContainers.hpp include/RemainderStore include/TinyTable.hpp)
 
 set(PF_FILES
     test/Prefix-Filter/Prefix-Filter/Shift_op.hpp test/Prefix-Filter/Prefix-Filter/Shift_op.cpp

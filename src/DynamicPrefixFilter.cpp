@@ -3,6 +3,7 @@
 #include <iostream>
 #include <map>
 #include <utility>
+#include <execution>
 
 using namespace DynamicPrefixFilter;
 
@@ -56,6 +57,7 @@ template class PartitionQuotientFilter<16, 35, 28, 22, 8, 64, 64, true, true>;
 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
 PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::PartitionQuotientFilter(std::size_t N, bool Normalize): 
+    // buff(8*BuffCacheLines, -1ull),
     capacity{Normalize ? static_cast<size_t>(N/NormalizingFactor) : N},
     range{capacity << SizeRemainders},
     frontyard((capacity+BucketNumMiniBuckets-1)/BucketNumMiniBuckets),
@@ -65,6 +67,8 @@ PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCap
     R = frontyard.size() / FrontyardToBackyardRatio / FrontyardToBackyardRatio + 1;
     if(R % (FrontyardToBackyardRatio - 1) == 0) R++;
     // std::cout << NormalizingFactor << " " << frontyard.size() << std::endl;
+
+    // resetBuffer();
 }
 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
@@ -234,7 +238,8 @@ void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
             __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
         }
         for(size_t i=j; i < std::min(num_keys, j+bsize); i++) {
-            status[i] = insert(hashes[i]);
+            // status[i] = insert(hashes[i]);
+            status[i] = forceInsert(hashes[i]);
         }
     }
 }
@@ -398,10 +403,20 @@ std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, Fron
 
 }
 
+//Optimize the following if it turns out they're suboptimal
+// template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+// void PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::resetBuffer() {
+//     std::fill(std::execution::unseq, buff.begin(), buff.end(), -1ull); //fill with some value larger than R that can't appear as input. Can do R+1, but idk just doing -1ull
+// }
+
+// template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+// bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::queryBuffer(std::uint64_t hash) {
+//     return std::any_of(std::execution::unseq, buff.begin(), buff.end(), [hash] (std::uint64_t x) {return x == hash;});
+// }
+
 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
-bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::insert(std::uint64_t hash) {
-
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::forceInsert(std::uint64_t hash) {
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     lockFrontyard(frontyardQR.bucketIndex);
     // size_t i = frontyardQR.bucketIndex;
@@ -418,8 +433,105 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
 }
 
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
+bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::insert(std::uint64_t hash) {
+//    static size_t i = 0;
+//    i++;
+    if constexpr (EnableBuff) {
+        // auto it = std::find(std::execution::unseq, buff.begin(), buff.end(), -1ull);
+        // if(it != buff.end()) {
+        //     *it = hash;
+	    // // std::cout << "gamingle" << std::endl;
+        //     return true;
+        // }
+        // else {
+        //     std::vector<bool> statuses(BuffCacheLines*8);
+        //     insertBatch(buff, statuses, BuffCacheLines*8);
+        //     bool retval = std::reduce(statuses.begin(), statuses.end(), true, [] (bool pres, bool r) {return pres && r;});
+        //     resetBuffer();
+        //     buff[0] = hash;
+	    // // std::cout << i << " " << retval << std::endl;
+        //     return retval;
+        // }
+
+        static constexpr bool OptimisticallyPrefetch = true;
+
+        if(buff.insert(hash)) {
+            // std::cout << "Hello " << i << std::endl;
+            auto arr = buff.getArray();
+            bool retval = true;
+
+            std::array<bool, arr.size()> status;
+            std::fill(status.begin(), status.end(), true);
+            constexpr size_t bsize = 32;
+
+            if constexpr (!OptimisticallyPrefetch) {
+                for (size_t j=0; j < arr.size(); j+=bsize) {
+                    for (size_t i=j; i < std::min(arr.size(), j+bsize); i++) {
+                        if(arr[i] == -1ull) continue;
+                        FrontyardQRContainerType frontyardQR = getQRPairFromHash(arr[i]);
+                        __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+                    }
+                    for(size_t i=j; i < std::min(arr.size(), j+bsize); i++) {
+                        // status[i] = insert(hashes[i]);
+                        if(arr[i] == -1ull) continue;
+                        // if(forceInsert(arr[i])) {
+                        //     arr[i] = -1ull;
+                        // }
+                        status[i] = forceInsert(arr[i]);
+                    }
+                }
+            }
+            else {
+                for(size_t i=0; i < arr.size(); i++) {
+                    if(arr[i] == -1ull) continue;
+                    // if(forceInsert(arr[i])) {
+                    //     arr[i] = -1ull;
+                    // }
+                    status[i] = forceInsert(arr[i]);
+                }
+            }
+
+            for(bool s: status) {
+                retval &= s;
+            }
+            
+            // for (size_t i=0; i < arr.size(); i++) {
+            //     if(arr[i] == -1ull) continue;
+            //     FrontyardQRContainerType frontyardQR = getQRPairFromHash(arr[i]);
+            //     __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+            // }
+            // for(size_t i=0; i < arr.size(); i++) {
+            //     if(arr[i] == -1ull) continue;
+            //     retval &= forceInsert(arr[i]);
+            // }
+
+            buff.reset();
+            return retval;
+
+            // return buff.notFull(hash);
+        }
+        else {
+            if constexpr (OptimisticallyPrefetch) {
+                FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+                __builtin_prefetch(&frontyard[frontyardQR.bucketIndex]);
+            }
+        }
+        return true;
+    }
+    else {
+        return forceInsert(hash);
+    }
+
+    return false;
+}
+
+template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
 std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::queryWhere(std::uint64_t hash) {
-    
+    if(EnableBuff) {
+        std::cerr << "Fix query where with buff or disable this entirely." << std::endl;
+        exit(1);
+    }
+
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     lockFrontyard(frontyardQR.bucketIndex);
 
@@ -434,10 +546,27 @@ std::uint64_t PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, Fron
 template<std::size_t SizeRemainders, std::size_t BucketNumMiniBuckets, std::size_t FrontyardBucketCapacity, std::size_t BackyardBucketCapacity, std::size_t FrontyardToBackyardRatio, std::size_t FrontyardBucketSize, std::size_t BackyardBucketSize, bool FastSQuery, bool Threaded>
 bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBucketCapacity, BackyardBucketCapacity, FrontyardToBackyardRatio, FrontyardBucketSize, BackyardBucketSize, FastSQuery, Threaded>::query(std::uint64_t hash) {
     
+    // if(EnableBuff) {
+    //     if(queryBuffer(hash)) return true;
+    // }
+    bool retval = false;
+    if constexpr (EnableBuff) {
+        retval = buff.query(hash);
+    }
+
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
+    // if(frontyardQR.miniBucketIndex > BucketNumMiniBuckets*7/8) {
+    //     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, R);
+    //     BackyardQRContainerType secondBackyardQR(frontyardQR, 1, R);
+        
+    //     __builtin_prefetch(&backyard[firstBackyardQR.bucketIndex]);
+    //     __builtin_prefetch(&backyard[secondBackyardQR.bucketIndex]);
+    // }
+
     lockFrontyard(frontyardQR.bucketIndex);
 
-    bool retval = queryInner(frontyardQR);
+    // bool retval = queryInner(frontyardQR);
+    retval = retval || queryInner(frontyardQR);
 
     unlockFrontyard(frontyardQR.bucketIndex);
     
@@ -449,6 +578,17 @@ bool PartitionQuotientFilter<SizeRemainders, BucketNumMiniBuckets, FrontyardBuck
     
     if constexpr (DEBUG)
         assert(query(hash));
+
+    if constexpr (EnableBuff) {
+        // auto it = std::find(std::execution::unseq, buff.begin(), buff.end(), -1ull);
+        // if(it != buff.end()) {
+        //     *it = -1ull;
+        //     return true;
+        // }
+        if(buff.remove(hash)) {
+            return true;
+        }
+    }
     FrontyardQRContainerType frontyardQR = getQRPairFromHash(hash);
     lockFrontyard(frontyardQR.bucketIndex);
 

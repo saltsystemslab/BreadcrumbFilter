@@ -26,7 +26,7 @@ if args.make:
 
 testdir = "test"
 if args.td:
-    testdir = args.testdir
+    testdir = args.td
 
 analdir = "analysis"
 if args.ad:
@@ -36,7 +36,7 @@ thread_count = 1
 if args.tc:
     thread_count = args.tc
 
-available_tests = {"ST" : (False, "SingleThreadedConfig.txt"), "Batch": (False, "SingleThreadedBatchConfig.txt"), "MT": (True, "MultiThreadedConfig.txt")}
+available_tests = {"ST" : (False, "SingleThreadedConfig.txt"), "Batch": (False, "SingleThreadedBatchConfig.txt"), "MT": (True, "MultiThreadedConfig.txt"), "NO": (False, "NewOptimizationsTesting.txt")}
 
 tests = [test]
 if test == "All":
@@ -59,7 +59,7 @@ exec_path = os.path.join(current_path, rel_exec_path)
 parallel_rel_exec_path = "../build/BenchFilter"
 parallel_exec_path = os.path.join(current_path, parallel_rel_exec_path)
 
-log_sizes_to_test = [22, 26] #make configurable later?
+log_sizes_to_test = [28] #make configurable later?
 thread_counts_to_test = []
 i = 1
 while i <= thread_count:

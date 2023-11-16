@@ -60,7 +60,7 @@ template<typename FT>
 void checkQuery(FT& filter, vector<size_t>& keys, size_t start, size_t end, bool& status) {
     for(size_t i{start}; i < end; i++) {
         if(!filter.query(keys[i])) {
-            // cerr << "Query on " << keys[i] << " failed." << endl;
+            cerr << "Query on " << keys[i] << " " << i << " failed." << endl;
             // exit(EXIT_FAILURE);
             status = false;
             return;

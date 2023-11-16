@@ -8,6 +8,7 @@
 #include "Bucket.hpp"
 #include "QRContainers.hpp"
 #include "RemainderStore.hpp"
+#include "TinyTable.hpp"
 
 namespace DynamicPrefixFilter {
 
@@ -134,6 +135,19 @@ namespace DynamicPrefixFilter {
             inline bool queryInner(FrontyardQRContainerType frontyardQR);
             inline bool removeInner(FrontyardQRContainerType frontyardQR);
         
+        private:
+            static constexpr bool EnableBuff = !Threaded;
+            static_assert(!(EnableBuff && Threaded)); //Not supported for now
+            // TinyBuffer buff;
+            static constexpr size_t SizeBuff = 32;
+            TinyTable<SizeBuff> buff;
+            // static constexpr size_t BuffCacheLines = 2; //hardcoded for now
+            // std::vector<uint64_t> buff;
+            // size_t buffIndex = 0;
+
+            // void resetBuffer();
+            // bool queryBuffer(std::uint64_t hash);
+
         public:
             bool insertFailure = false;
             std::size_t failureFB = 0;
@@ -147,6 +161,7 @@ namespace DynamicPrefixFilter {
             std::size_t range;
             PartitionQuotientFilter(std::size_t N, bool Normalize = true);
             bool insert(std::uint64_t hash);
+            bool forceInsert(std::uint64_t hash);
             void insertBatch(const std::vector<size_t>& hashes, std::vector<bool>& status, const uint64_t num_keys); //Really lazy and not super optimized implementation just to show that morton filters can easily be beaten
             std::uint64_t queryWhere(std::uint64_t hash); //also queries where the item is (backyard or frontyard)
             bool query(std::uint64_t hash);
