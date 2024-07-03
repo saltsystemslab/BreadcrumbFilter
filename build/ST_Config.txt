@@ -93,3 +93,17 @@ MaxLoadFactor 0.93
 
 MaxLoadFactor 0.9
 # OriginalCF12 
+
+MixedWorkloadBenchmark
+NumTrials 1
+NumReplicants 1
+NumKeys 16777216
+LoadFactorTicks 10
+MaxLoadFactor 0.83
+PQF_8_22
+
+MaxLoadFactor 0.93
+VQF
+
+MaxLoadFactor 0.98
+Morton3_12
