@@ -47,7 +47,7 @@ set(MORTON_FILES
 
 add_library(vqf OBJECT IMPORTED)
 add_library(PQF ${DPF_FILES})
-target_include_directories(PQF PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(PQF PRIVATE ${PROJECT_SOURCE_DIR}/include, test/cqf/include)
 
 
 set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
@@ -66,6 +66,6 @@ else()
     message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
 
-target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
+target_compile_options(Tester PRIVATE -g -Wall)
 target_link_libraries(Tester PRIVATE vqf)
-target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
+target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter", "test/cqf/include")

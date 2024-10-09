@@ -5,6 +5,9 @@
 	path = test/vqf
 	url = https://github.com/aaditya2200/vqf
 	branch = master
+[submodule "test/cqf"]
+	path = test/cqf
+	url = https://github.com/splatlab/cqf.git
 [submodule "test/cuckoofilter"]
 	path = test/cuckoofilter
 	url = https://github.com/efficient/cuckoofilter.git

@@ -1,6 +1,11 @@
 #ifndef DYNAMIC_PREFIX_FILTER_HPP
 #define DYNAMIC_PREFIX_FILTER_HPP
 
+extern "C" {
+#include "gqf.h"
+#include "gqf_int.h"
+#include "gqf_file.h"
+};
 #include <vector>
 #include <cstddef>
 #include <cstdint>
@@ -89,9 +94,13 @@ namespace PQF {
             using FrontyardQRContainerType = FrontyardQRContainer<BucketNumMiniBuckets>;
             using FrontyardBucketType = Bucket<SizeRemainders, FrontyardBucketCapacity, BucketNumMiniBuckets, FrontyardQRContainer, FrontyardBucketSize, FastSQuery, Threaded>;
             static_assert(sizeof(FrontyardBucketType) == FrontyardBucketSize);
+
             using BackyardQRContainerType = BackyardQRContainer<BucketNumMiniBuckets, SizeRemainders, FrontyardToBackyardRatio>;
             template<size_t NumMiniBuckets>
             using WrappedBackyardQRContainerType = BackyardQRContainer<NumMiniBuckets, SizeRemainders, FrontyardToBackyardRatio>;
+            // TODO need to change this to CQF
+            // how? just call a function maybe?
+
             using BackyardBucketType = Bucket<SizeRemainders + 4, BackyardBucketCapacity, BucketNumMiniBuckets, WrappedBackyardQRContainerType, BackyardBucketSize, FastSQuery, Threaded>;
             static_assert(sizeof(BackyardBucketType) == BackyardBucketSize);
 
