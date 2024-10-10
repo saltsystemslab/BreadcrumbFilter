@@ -35,8 +35,10 @@ namespace PQF {
         public:
             AlignedVector(std::size_t s=0): s{s}, alignedSize{getAlignedSize(s)}, vec{static_cast<T*>(std::aligned_alloc(alignment, alignedSize))} {
                 for(size_t i{0}; i < s; i++) {
-                    if (std::is_same<decltype(vec[0]), quotient_filter>::value)
-                        vec[i] = qf_initfile(vec[i], std::pow(2, 10), 22, 0, QF_HASH_DEFAULT, 42, "myfile" + std::to_string(i) + ".cqf");
+                    if constexpr (std::is_same<T, quotient_filter>::value) {
+			std::string filename = "myfile" + std::to_string(i) + ".cqf";
+                        qf_initfile(&vec[i], std::pow(2, 10), 22, 0, QF_HASH_DEFAULT, 42, filename.c_str());
+		    }
                     else {
                         vec[i] = T();
                     }
