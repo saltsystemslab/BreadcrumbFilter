@@ -595,7 +595,7 @@ namespace PQF {
         
         private:
             AlignedVector<FrontyardBucketType, 64> frontyard;
-            AlignedVector<BackyardBucketType, 64> backyard;
+            AlignedVector<quotient_filter, 64> backyard;
 
     };
 
