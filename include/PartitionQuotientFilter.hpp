@@ -14,6 +14,7 @@ extern "C" {
 #include <vector>
 #include <set>
 #include <random>
+#include <type_traits>
 #include "Bucket.hpp"
 #include "QRContainers.hpp"
 #include "RemainderStore.hpp"
@@ -34,7 +35,11 @@ namespace PQF {
         public:
             AlignedVector(std::size_t s=0): s{s}, alignedSize{getAlignedSize(s)}, vec{static_cast<T*>(std::aligned_alloc(alignment, alignedSize))} {
                 for(size_t i{0}; i < s; i++) {
-                    vec[i] = qf_initfile(vec[i], std::pow(2, 10), 22, 0, QF_HASH_DEFAULT, 42, "myfile" + std::to_string(i) + ".cqf");
+                    if (std::is_same<decltype(vec[0]), quotient_filter>::value)
+                        vec[i] = qf_initfile(vec[i], std::pow(2, 10), 22, 0, QF_HASH_DEFAULT, 42, "myfile" + std::to_string(i) + ".cqf");
+                    else {
+                        vec[i] = T();
+                    }
                 }
             }
             ~AlignedVector() {
