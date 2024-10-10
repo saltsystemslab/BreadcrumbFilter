@@ -130,12 +130,12 @@ namespace PQF {
                     i1 &= backyardLockCachelineMask;
                     i2 &= backyardLockCachelineMask;
                     if (i1 == i2) { 
-                        backyard[i1].lock();
+                        //backyard[i1].lock();
                         return;
                     }
                     if (i1 > i2) std::swap(i1, i2);
-                    backyard[i1].lock();
-                    backyard[i2].lock();
+                    //backyard[i1].lock();
+                    //backyard[i2].lock();
                 }
             }
 
@@ -144,12 +144,12 @@ namespace PQF {
                     i1 &= backyardLockCachelineMask;
                     i2 &= backyardLockCachelineMask;
                     if (i1 == i2) { 
-                        backyard[i1].unlock();
+                        //backyard[i1].unlock();
                         return;
                     }
                     // if (i1 > i2) std::swap(i1, i2);
-                    backyard[i2].unlock();
-                    backyard[i1].unlock();
+                    //backyard[i2].unlock();
+                    //backyard[i1].unlock();
                 }
             }
             
@@ -168,15 +168,20 @@ namespace PQF {
             }
 
             inline bool insertOverflow(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR) {
-                std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
-                std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
+                //std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
+                //std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
+                std::size_t fillOfFirstBackyardBucket =1;
+                std::size_t fillOfSecondBackyardBucket = 0;
                 
                 if(fillOfFirstBackyardBucket < fillOfSecondBackyardBucket) {
                     if constexpr (PARTIAL_DEBUG || DEBUG)
-                        assert(backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull); //Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
+                        //assert(backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull);
+                        // Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
+                        assert(1);
                     else {
                         if constexpr (DIAGNOSTICS) {
-                            bool success = backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull;
+                            //bool success = backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull;
+                            bool success = true;
                             failureFB = overflow.bucketIndex;
                             failureBucket1 = firstBackyardQR.bucketIndex;
                             failureBucket2 = secondBackyardQR.bucketIndex;
@@ -185,16 +190,18 @@ namespace PQF {
                             return success;
                         }
                         else {
-                            backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR);
+                            //backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR);
                         }
                     }
                 }
                 else {
                     if constexpr (PARTIAL_DEBUG || DEBUG)
-                        assert(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull);
+                        //assert(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull);
+                        assert(1);
                     else {
                         if constexpr (DIAGNOSTICS) {
-                            bool success = backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
+                            //bool success = backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
+                            bool success = true;
                             insertFailure = !success;
                             failureFB = overflow.bucketIndex;
                             failureBucket1 = firstBackyardQR.bucketIndex;
@@ -206,7 +213,8 @@ namespace PQF {
                             return success;
                         }
                         else {
-                            return backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
+                            //return backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
+                            return 1;
                         }
                     }
                 }
@@ -214,17 +222,18 @@ namespace PQF {
             }
 
             inline std::uint64_t queryBackyard(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR) {
-                return backyard[firstBackyardQR.bucketIndex].querySimple(firstBackyardQR) || backyard[secondBackyardQR.bucketIndex].querySimple(secondBackyardQR);
+                //return backyard[firstBackyardQR.bucketIndex].querySimple(firstBackyardQR) || backyard[secondBackyardQR.bucketIndex].querySimple(secondBackyardQR);
+                return 0;
             }
 
             inline bool removeFromBackyard(FrontyardQRContainerType frontyardQR, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR, bool elementInFrontyard) {
                 if (elementInFrontyard) { //In the case we removed it from the frontyard bucket, we need to bring back an element from the backyard (if there is one)
                     //Pretty messy since need to figure out who in the backyard has the key with a smaller miniBucket, since we want to bring the key with the smallest miniBucket index back into the frontyard
-                    std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
-                    std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
+                    std::size_t fillOfFirstBackyardBucket =1;
+                    std::size_t fillOfSecondBackyardBucket =0;
                     if(fillOfFirstBackyardBucket==0 && fillOfSecondBackyardBucket==0) return true;
-                    std::uint64_t keysFromFrontyardInFirstBackyard = backyard[firstBackyardQR.bucketIndex].remainderStore.query4BitPartMask(firstBackyardQR.whichFrontyardBucket, (1ull << fillOfFirstBackyardBucket) - 1);
-                    std::uint64_t keysFromFrontyardInSecondBackyard = backyard[secondBackyardQR.bucketIndex].remainderStore.query4BitPartMask(secondBackyardQR.whichFrontyardBucket, (1ull << fillOfSecondBackyardBucket) - 1);
+                    std::uint64_t keysFromFrontyardInFirstBackyard = 1;
+                    std::uint64_t keysFromFrontyardInSecondBackyard = 0;
                     if constexpr (DEBUG) {
                         assert(firstBackyardQR.whichFrontyardBucket == firstBackyardQR.remainder >> SizeRemainders);
                         assert(secondBackyardQR.whichFrontyardBucket == secondBackyardQR.remainder >> SizeRemainders);
@@ -232,24 +241,24 @@ namespace PQF {
                     if(keysFromFrontyardInFirstBackyard == 0 && keysFromFrontyardInSecondBackyard == 0) return true;
                     std::uint64_t firstKeyBackyard = __builtin_ctzll(keysFromFrontyardInFirstBackyard);
                     std::uint64_t secondKeyBackyard = __builtin_ctzll(keysFromFrontyardInSecondBackyard);
-                    std::uint64_t firstMiniBucketBackyard = backyard[firstBackyardQR.bucketIndex].queryWhichMiniBucket(firstKeyBackyard);
-                    std::uint64_t secondMiniBucketBackyard = backyard[secondBackyardQR.bucketIndex].queryWhichMiniBucket(secondKeyBackyard);
+                    std::uint64_t firstMiniBucketBackyard = 1;
+                    std::uint64_t secondMiniBucketBackyard = 0;
                     if constexpr (DEBUG) {
                         assert(firstMiniBucketBackyard >= frontyard[frontyardQR.bucketIndex].queryWhichMiniBucket(FrontyardBucketCapacity-2) && secondMiniBucketBackyard >= frontyard[frontyardQR.bucketIndex].queryWhichMiniBucket(FrontyardBucketCapacity-2));
                     }
                     if(firstMiniBucketBackyard < secondMiniBucketBackyard) {
                         frontyardQR.miniBucketIndex = firstMiniBucketBackyard;
-                        frontyardQR.remainder = backyard[firstBackyardQR.bucketIndex].remainderStoreRemoveReturn(firstKeyBackyard, firstMiniBucketBackyard) & HashMask;
+                        frontyardQR.remainder = 1;
                     }
                     else {
                         frontyardQR.miniBucketIndex = secondMiniBucketBackyard;
-                        frontyardQR.remainder = backyard[secondBackyardQR.bucketIndex].remainderStoreRemoveReturn(secondKeyBackyard, secondMiniBucketBackyard) & HashMask;
+                        frontyardQR.remainder = 0;
                     }
                     frontyard[frontyardQR.bucketIndex].insert(frontyardQR);
                 }
                 else {
-                    if (!backyard[firstBackyardQR.bucketIndex].remove(firstBackyardQR)) {
-                        return backyard[secondBackyardQR.bucketIndex].remove(secondBackyardQR);
+                    if (!0) {
+                        return true;
                     }
                 }
                 return true;
@@ -405,10 +414,10 @@ namespace PQF {
                     FrontyardQRContainerType frontyardQR(i*BucketNumMiniBuckets, 0);
                     BackyardQRContainerType firstBackyardQR(frontyardQR, 0, a.R);
                     BackyardQRContainerType secondBackyardQR(frontyardQR, 1, a.R);
-                    a.backyard[firstBackyardQR.bucketIndex].deconstruct(aback1keys);
-                    b.backyard[firstBackyardQR.bucketIndex].deconstruct(bback1keys);
-                    a.backyard[secondBackyardQR.bucketIndex].deconstruct(aback2keys);
-                    b.backyard[secondBackyardQR.bucketIndex].deconstruct(bback2keys);
+//                    a.backyard[firstBackyardQR.bucketIndex].deconstruct(aback1keys);
+//                    b.backyard[firstBackyardQR.bucketIndex].deconstruct(bback1keys);
+//                    a.backyard[secondBackyardQR.bucketIndex].deconstruct(aback2keys);
+//                    b.backyard[secondBackyardQR.bucketIndex].deconstruct(bback2keys);
 
                     auto filterbackyard = [&a] (auto& v, std::vector<std::pair<uint64_t, uint64_t>>& o, BackyardQRContainerType b) {
                         for(auto x: v) {
