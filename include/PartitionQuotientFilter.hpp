@@ -36,7 +36,7 @@ namespace PQF {
             AlignedVector(std::size_t s=0): s{s}, alignedSize{getAlignedSize(s)}, vec{static_cast<T*>(std::aligned_alloc(alignment, alignedSize))} {
                 for(size_t i{0}; i < s; i++) {
                     if constexpr (std::is_same<T, quotient_filter>::value) {
-			std::string filename = "myfile" + std::to_string(i) + ".cqf";
+			std::string filename = "myfile.cqf";
                         qf_initfile(&vec[i], std::pow(2, 10), 22, 0, QF_HASH_DEFAULT, 42, filename.c_str());
 		    }
                     else {
@@ -177,6 +177,7 @@ namespace PQF {
             inline bool insertOverflow(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR) {
                 //std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
                 //std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
+		qf_insert(&backyard[firstBackyardQR.bucketIndex], overflow.remainder, 0, 1, QF_NO_LOCK);
                 std::size_t fillOfFirstBackyardBucket =1;
                 std::size_t fillOfSecondBackyardBucket = 0;
                 

@@ -1,5 +1,6 @@
-Benchmark
-NumKeys 1048576
+#Benchmark
+LoadFactor
+NumKeys 67108864
 # 1048576 
 # 4194304 
 # 67108864 

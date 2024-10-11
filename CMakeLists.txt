@@ -16,7 +16,9 @@ check_ipo_supported(RESULT supported OUTPUT error)
 
 set(DPF_FILES 
     src/TestUtility.cpp include/Bucket.hpp include/PartitionQuotientFilter.hpp
-    include/MiniFilter.hpp include/QRContainers.hpp include/RemainderStore.hpp)
+    include/MiniFilter.hpp include/QRContainers.hpp include/RemainderStore.hpp
+    test/cqf/src/gqf.c test/cqf/src/gqf_file.c test/cqf/src/partitioned_counter.c test/cqf/src/hashutil2.c  
+)
 
 set(PF_FILES
     test/Prefix-Filter/Prefix-Filter/Shift_op.hpp test/Prefix-Filter/Prefix-Filter/Shift_op.cpp
@@ -47,7 +49,7 @@ set(MORTON_FILES
 
 add_library(vqf OBJECT IMPORTED)
 add_library(PQF ${DPF_FILES})
-target_include_directories(PQF PRIVATE ${PROJECT_SOURCE_DIR}/include, test/cqf/include)
+target_include_directories(PQF PRIVATE ${PROJECT_SOURCE_DIR}/include test/cqf/include)
 
 
 set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
@@ -68,4 +70,4 @@ endif()
 
 target_compile_options(Tester PRIVATE -g -Wall)
 target_link_libraries(Tester PRIVATE vqf)
-target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter", "test/cqf/include")
+target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter" "test/Prefix-Filter/Bloom_Filter" "test/cqf/include")
