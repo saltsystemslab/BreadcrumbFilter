@@ -177,54 +177,8 @@ namespace PQF {
             inline bool insertOverflow(FrontyardQRContainerType overflow, BackyardQRContainerType firstBackyardQR, BackyardQRContainerType secondBackyardQR) {
                 //std::size_t fillOfFirstBackyardBucket = backyard[firstBackyardQR.bucketIndex].countKeys();
                 //std::size_t fillOfSecondBackyardBucket = backyard[secondBackyardQR.bucketIndex].countKeys();
-                std::size_t fillOfFirstBackyardBucket =1;
-                std::size_t fillOfSecondBackyardBucket = 0;
-                
-                if(fillOfFirstBackyardBucket < fillOfSecondBackyardBucket) {
-                    if constexpr (PARTIAL_DEBUG || DEBUG)
-                        //assert(backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull);
-                        // Failing this would be *really* bad, as it is the main unproven assumption this algo relies on
-                        assert(1);
-                    else {
-                        if constexpr (DIAGNOSTICS) {
-                            //bool success = backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR).miniBucketIndex == -1ull;
-                            bool success = true;
-                            failureFB = overflow.bucketIndex;
-                            failureBucket1 = firstBackyardQR.bucketIndex;
-                            failureBucket2 = secondBackyardQR.bucketIndex;
-                            failureWFB = firstBackyardQR.whichFrontyardBucket;
-                            insertFailure = !success;
-                            return success;
-                        }
-                        else {
-                            //backyard[firstBackyardQR.bucketIndex].insert(firstBackyardQR);
-                        }
-                    }
-                }
-                else {
-                    if constexpr (PARTIAL_DEBUG || DEBUG)
-                        //assert(backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull);
-                        assert(1);
-                    else {
-                        if constexpr (DIAGNOSTICS) {
-                            //bool success = backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
-                            bool success = true;
-                            insertFailure = !success;
-                            failureFB = overflow.bucketIndex;
-                            failureBucket1 = firstBackyardQR.bucketIndex;
-                            failureBucket2 = secondBackyardQR.bucketIndex;
-                            failureWFB = firstBackyardQR.whichFrontyardBucket;
-                            if(!success) {
-                                std::cerr << firstBackyardQR.bucketIndex << " " << secondBackyardQR.bucketIndex << std::endl;
-                            }
-                            return success;
-                        }
-                        else {
-                            //return backyard[secondBackyardQR.bucketIndex].insert(secondBackyardQR).miniBucketIndex == -1ull;
-                            return 1;
-                        }
-                    }
-                }
+                // todo just call the qf_insert API
+                qf_insert(&backyard[firstBackyardQR.bucketIndex], overflow.remainder, 0, 1, QF_NO_LOCK);
                 return true;
             }
 
