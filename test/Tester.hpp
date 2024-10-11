@@ -111,42 +111,42 @@ using PQF_16_35_FRQ_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_16_35_FRQ_T, PQF_16_
 
 
 //PF Types
-struct PF_TC_Wrapper {
-    // using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
-    using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, loadFactorMultiplierPF<TC_shortcut>, false>;
-    static constexpr std::string_view name = "PF_TC";
-    static constexpr bool threaded = false;
-    static constexpr bool canBatch = false;
-    static constexpr bool canDelete = false;
-};
+//struct PF_TC_Wrapper {
+//    // using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
+//    using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, loadFactorMultiplierPF<TC_shortcut>, false>;
+//    static constexpr std::string_view name = "PF_TC";
+//    static constexpr bool threaded = false;
+//    static constexpr bool canBatch = false;
+//    static constexpr bool canDelete = false;
+//};
 
-using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+//using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+//
+//struct CF12_Flex_Wrapper {
+//    using type = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
+//    static constexpr std::string_view name = "CF12_Flex";
+//    static constexpr bool threaded = false;
+//    static constexpr bool canBatch = false;
+//    static constexpr bool canDelete = true;
+//};
 
-struct CF12_Flex_Wrapper {
-    using type = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
-    static constexpr std::string_view name = "CF12_Flex";
-    static constexpr bool threaded = false;
-    static constexpr bool canBatch = false;
-    static constexpr bool canDelete = true;
-};
+//struct PF_CFF12_Wrapper {
+//    // using type = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex_Wrapper::type, sizeCFF>>;
+//    using type = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, loadFactorMultiplierPF<CF12_Flex>>;
+//    static constexpr std::string_view name = "PF_CFF12";
+//    static constexpr bool threaded = false;
+//    static constexpr bool canBatch = false;
+//    static constexpr bool canDelete = false;
+//};
 
-struct PF_CFF12_Wrapper {
-    // using type = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, sizePF<CF12_Flex_Wrapper::type, sizeCFF>>;
-    using type = PFFilterAPIWrapper<Prefix_Filter<CF12_Flex>, loadFactorMultiplierPF<CF12_Flex>>;
-    static constexpr std::string_view name = "PF_CFF12";
-    static constexpr bool threaded = false;
-    static constexpr bool canBatch = false;
-    static constexpr bool canDelete = false;
-};
-
-struct PF_BBFF_Wrapper {
-    // using type = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
-    using type = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, loadFactorMultiplierPF<SimdBlockFilterFixed<>>>;
-    static constexpr std::string_view name = "PF_BBFF";
-    static constexpr bool threaded = false;
-    static constexpr bool canBatch = false;
-    static constexpr bool canDelete = false;
-};
+//struct PF_BBFF_Wrapper {
+//    // using type = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, sizePF<SimdBlockFilterFixed<>, sizeBBFF>>;
+//    using type = PFFilterAPIWrapper<Prefix_Filter<SimdBlockFilterFixed<>>, loadFactorMultiplierPF<SimdBlockFilterFixed<>>>;
+//    static constexpr std::string_view name = "PF_BBFF";
+//    static constexpr bool threaded = false;
+//    static constexpr bool canBatch = false;
+//    static constexpr bool canDelete = false;
+//};
 
 struct TC_Wrapper {
     // using type = PFFilterAPIWrapper<TC_shortcut, sizeTC, true>;
@@ -176,22 +176,22 @@ struct BBFF_Wrapper {
 };
 
 
-//Original cuckoo filter
-struct OriginalCF12_Wrapper {
-    using type = CuckooWrapper<size_t, 12>;
-    static constexpr std::string_view name = "OriginalCF12";
-    static constexpr bool threaded = false;
-    static constexpr bool canBatch = false;
-    static constexpr bool canDelete = true;
-};
-
-struct OriginalCF16_Wrapper {
-    using type = CuckooWrapper<size_t, 16>;
-    static constexpr std::string_view name = "OriginalCF16";
-    static constexpr bool threaded = false;
-    static constexpr bool canBatch = false;
-    static constexpr bool canDelete = true;
-};
+////Original cuckoo filter
+//struct OriginalCF12_Wrapper {
+//    using type = CuckooWrapper<size_t, 12>;
+//    static constexpr std::string_view name = "OriginalCF12";
+//    static constexpr bool threaded = false;
+//    static constexpr bool canBatch = false;
+//    static constexpr bool canDelete = true;
+//};
+//
+//struct OriginalCF16_Wrapper {
+//    using type = CuckooWrapper<size_t, 16>;
+//    static constexpr std::string_view name = "OriginalCF16";
+//    static constexpr bool threaded = false;
+//    static constexpr bool canBatch = false;
+//    static constexpr bool canDelete = true;
+//};
 
 
 //Morton
