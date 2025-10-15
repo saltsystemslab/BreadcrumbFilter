@@ -11,3 +11,6 @@
 [submodule "test/morton_filter"]
 	path = test/morton_filter
 	url = https://github.com/AMDComputeLibraries/morton_filter.git
+[submodule "test/cqf"]
+	path = test/cqf
+	url = https://github.com/splatlab/cqf

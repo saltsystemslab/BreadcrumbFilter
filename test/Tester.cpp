@@ -80,10 +80,13 @@ std::vector <size_t> generateKeys(const FT &filter, size_t N, size_t NumThreads 
 }
 
 template<typename FT>
-bool insertItems(FT &filter, const std::vector <size_t> &keys, size_t start, size_t end) {
+bool insertItems(FT &filter, const std::vector <size_t> &keys, size_t start, size_t end, std::string name = "") {
     for (size_t i{start}; i < end; i++) {
+        // if (name == "CQF") {
+        //     std::cout << keys[i] << " " << i << std::endl;
+        // }
         if (!filter.insert(keys[i])) {
-            std::cerr << "Tried to insert key " << keys[i] << "\n";
+            std::cerr << "Tried to insert key " << keys[i] << std::endl;
             return false;
         }
         //std::cerr << "Inserted key " << keys[i];
@@ -405,8 +408,16 @@ struct MergeWrapper {
             std::cerr << "Cannot have 0 threads!!" << std::endl;
             return {};
         }
-        if (numThreads > 1 && !FTWrapper::threaded) {
-            std::cerr << "Cannot test multiple threads when the filter does not support it!" << std::endl;
+        else if (numThreads > 1){
+            std::cerr << "no multithreaded merging yet" << std::endl;
+            return {};
+        }
+        // if (numThreads > 1 && !FTWrapper::threaded) {
+        //     std::cerr << "Cannot test multiple threads when the filter does not support it!" << std::endl;
+        //     return {};
+        // }
+        if (!FTWrapper::canMerge) {
+            std::cerr << "Cannot merge without support!" << std::endl;
             return {};
         }
 
@@ -423,12 +434,12 @@ struct MergeWrapper {
         FT b(filterSlots);
 
         std::vector <size_t> keys = generateKeys<FT>(a, 2 * N);
-        insertItems<FT>(a, keys, 0, N);
+        insertItems<FT>(a, keys, 0, N, std::string(FTWrapper::name));
         if (!checkQuery(a, keys, 0, N)) {
             std::cerr << "Failed to insert into a" << std::endl;
             return std::vector < double > {std::numeric_limits<double>::max()};
         }
-        insertItems<FT>(b, keys, N, 2 * N);
+        insertItems<FT>(b, keys, N, 2 * N, std::string(FTWrapper::name));
         if (!checkQuery(b, keys, N, 2 * N)) {
             std::cerr << "Failed to insert into b" << std::endl;
             return std::vector < double > {std::numeric_limits<double>::max()};
@@ -437,19 +448,29 @@ struct MergeWrapper {
 
         bool success = true;
 
+        FT *c;
+
         double mergeTime = runTest([&]() {
-            FT c(a, b);
+            // FT c(a, b);
+            c = new FT(a,b);
             // if(!checkQuery(c, keys, 0, 2*N)) {
             //     std::cerr << "Merge failed" << endl;
             //     success = false;
             //     exit(-1);
             // }
-            if (!checkFunctional(c, keys, generator)) {
+            if(!checkQuery(*c, keys, N-2, N+2)) {
                 std::cerr << "Merge failed" << endl;
                 success = false;
                 exit(-1);
             }
         });
+
+        if (!checkFunctional(*c, keys, generator)) {
+            std::cerr << "Merge failed" << endl;
+            success = false;
+            exit(-1);
+        }
+        delete c;
 
         if (!success) {
             return std::vector < double > {std::numeric_limits<double>::max()};
@@ -886,7 +907,7 @@ struct MixedWorkloadMultithreadedBenchmarkWrapper {
 
     template<typename FTWrapper>
     static void analyze(Settings s, std::filesystem::path outputFolder, std::vector <std::vector<double>> outputs) {
-        double effectiveN = s.N * s.maxLoadFactor.value();
+        // double effectiveN = s.N * s.maxLoadFactor.value();
         double averageWorkloadTimes = 0;
         for (auto v: outputs) {
             averageWorkloadTimes += v[0] / outputs.size();
@@ -1018,7 +1039,7 @@ struct MixedWorkloadBenchmarkWrapper {
 
     template<typename FTWrapper>
     static void analyze(Settings s, std::filesystem::path outputFolder, std::vector <std::vector<double>> outputs) {
-        double effectiveN = s.N * s.maxLoadFactor.value();
+        // double effectiveN = s.N * s.maxLoadFactor.value();
         double averageWorkloadTimes = 0;
         for (auto v: outputs) {
             averageWorkloadTimes += v[0] / outputs.size();
@@ -1384,7 +1405,8 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         TC_Wrapper, CFF12_Wrapper, BBFF_Wrapper,
         OriginalCF12_Wrapper, OriginalCF16_Wrapper,
         Morton3_12_Wrapper, Morton3_18_Wrapper,
-        VQF_Wrapper, VQFT_Wrapper, BBF_Wrapper, PQF_8_3_Wrapper>;
+        VQF_Wrapper, VQFT_Wrapper, BBF_Wrapper, PQF_8_3_Wrapper,
+        CQF_Wrapper>;
 
 using TestWrapperTuple = std::tuple<BenchmarkWrapper,
         MultithreadedWrapper,
@@ -1398,7 +1420,8 @@ using PQFTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_W
         PQF_8_31_Wrapper, PQF_8_31_FRQ_Wrapper, PQF_8_62_Wrapper, PQF_8_62_FRQ_Wrapper,
         PQF_8_53_Wrapper, PQF_8_53_FRQ_Wrapper, PQF_16_36_Wrapper, PQF_16_36_FRQ_Wrapper,
         PQF_8_21_T_Wrapper, PQF_8_21_FRQ_T_Wrapper, PQF_8_52_T_Wrapper, PQF_8_52_FRQ_T_Wrapper,
-        PQF_16_35_T_Wrapper, PQF_16_35_FRQ_T_Wrapper, PQF_8_3_Wrapper>;
+        PQF_16_35_T_Wrapper, PQF_16_35_FRQ_T_Wrapper, PQF_8_3_Wrapper,
+        CQF_Wrapper>;
 
 using AllTester = TemplatedTester<FTTuple, TestWrapperTuple>;
 
@@ -1414,7 +1437,8 @@ int main(int argc, char *argv[]) {
         AllTester::runTests(argv[1], argv[2]);
     } else if (argc == 4) {
         AllTester::runTests(argv[1], argv[2], argv[3]);
-    } else if (argc == 5) {
+    } 
+    else if (argc == 5) {
         MergeTester::runTests(argv[1], argv[2], argv[3]);
     }
 }

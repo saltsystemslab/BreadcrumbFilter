@@ -17,8 +17,8 @@ std::mt19937_64 createGenerator();
 template<typename FT>
 size_t generateKey(const FT& filter, std::mt19937_64& generator);
 
-template<typename FT>
-bool insertItems(FT& filter, const std::vector<size_t>& keys, size_t start, size_t end);
+// template<typename FT>
+// bool insertItems(FT& filter, const std::vector<size_t>& keys, size_t start, size_t end, std::string name = "");
 
 template<typename FT>
 bool checkQuery(FT& filter, const std::vector<size_t>& keys, size_t start, size_t end);
@@ -49,6 +49,7 @@ struct PQF_Wrapper_SingleT {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = true;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = true;
 };
 
 
@@ -92,6 +93,7 @@ struct PQF_Wrapper_MultiT {
     static constexpr bool onlyInsertsThreaded = false;
     static constexpr bool canBatch = true;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false; //set to true if implement multithreaded merging
 };
 
 static const char PQF_8_21_T_Wrapper_str[] = "PQF_8_21_T";
@@ -118,6 +120,7 @@ struct PF_TC_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = false;
+    static constexpr bool canMerge = false;
 };
 
 using CF12_Flex = cuckoofilter::CuckooFilterStable<uint64_t, 12>;
@@ -128,6 +131,7 @@ struct CF12_Flex_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 
 struct PF_CFF12_Wrapper {
@@ -137,6 +141,7 @@ struct PF_CFF12_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = false;
+    static constexpr bool canMerge = false;
 };
 
 struct PF_BBFF_Wrapper {
@@ -146,6 +151,7 @@ struct PF_BBFF_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = false;
+    static constexpr bool canMerge = false;
 };
 
 struct TC_Wrapper {
@@ -155,6 +161,7 @@ struct TC_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 
 struct CFF12_Wrapper {
@@ -164,6 +171,7 @@ struct CFF12_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 
 struct BBFF_Wrapper {
@@ -173,6 +181,7 @@ struct BBFF_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = false;
+    static constexpr bool canMerge = false;
 };
 
 
@@ -183,6 +192,7 @@ struct OriginalCF12_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 
 struct OriginalCF16_Wrapper {
@@ -191,6 +201,7 @@ struct OriginalCF16_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 
 
@@ -201,6 +212,7 @@ struct Morton3_12_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = true;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 struct Morton3_18_Wrapper {
     using type = MortonWrapper<CompressedCuckoo::Morton3_18>;
@@ -208,6 +220,7 @@ struct Morton3_18_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = true;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 
 //VQF
@@ -217,6 +230,7 @@ struct VQF_Wrapper {
     static constexpr bool threaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 
 //not a real different one from VQF, but just for the output distinction. VQF needs macro change, so we just recompile the VQF for a threaded test
@@ -227,15 +241,36 @@ struct VQFT_Wrapper {
     static constexpr bool onlyInsertsThreaded = true;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
 };
 
 struct BBF_Wrapper {
     using type = BBFWrapper;
     static constexpr std::string_view name = "BBFT";
     static constexpr bool threaded = false;
-    static constexpr bool onlyInsertsThreaded = false;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = false;
+    static constexpr bool canMerge = false;
+};
+
+struct CQF_Wrapper {
+    using type = CQFWrapper;
+    static constexpr std::string_view name = "CQF";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+    static constexpr bool canMerge = true;
+};
+
+//not a real different one from CQF, but just for the output distinction. CQF needs macro change, so we just recompile the CQF for a threaded test
+struct CQFT_Wrapper {
+    using type = CQFWrapper;
+    static constexpr std::string_view name = "CQFT";
+    static constexpr bool threaded = true;
+    static constexpr bool onlyInsertsThreaded = true;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+    static constexpr bool canMerge = true;
 };
 
 #endif

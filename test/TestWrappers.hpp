@@ -1,6 +1,10 @@
 #ifndef WRAPPERS_HPP
 #define WRAPPERS_HPP
 
+
+#include "gqf.h"
+#include "gqf_int.h"
+
 #include "vqf_filter.h"
 #include "min_pd256.hpp"
 #include "tc-sym.hpp"
@@ -9,6 +13,7 @@
 // #include "cuckoofilter.h"
 #include "morton_sample_configs.h"
 #include "simd-block-fixed-fpp.h"
+#include <immintrin.h>
 #include <algorithm>
 
 //The methods in this function were copied from main.cc in VQF
@@ -24,7 +29,7 @@ public:
 
     VQFWrapper(size_t nslots) : nslots{nslots} {
         if ((filter = vqf_init(nslots)) == NULL) {
-            fprintf(stderr, "Insertion failed");
+            fprintf(stderr, "Creation of VQF failed");
             exit(EXIT_FAILURE);
         }
         // range = filter->metadata.range;
@@ -52,6 +57,62 @@ public:
 
     ~VQFWrapper() {
         free(filter);
+    }
+};
+
+class CQFWrapper {
+    size_t nslots;
+    QF filter;
+    static constexpr size_t rbits = 8;
+
+public:
+    size_t range;
+    // bool insertFailure;
+
+    CQFWrapper(size_t nslots) : nslots{nslots} {
+        // roughly rounding qbits = round(log (nslots)) by doing the multiplication by 7/5
+        size_t qbits = 63 - _lzcnt_u64 (nslots * 7 / 5);
+        size_t tot_bits = rbits + qbits;
+        // filter = new QF;
+        if (!qf_malloc(&filter, nslots, tot_bits, 0, QF_HASH_NONE, 0)) {
+            fprintf(stderr, "Creation of CQF failed");
+            exit(EXIT_FAILURE);
+        }
+        range = 1ull << tot_bits;
+    }
+
+    CQFWrapper(const CQFWrapper& a, const CQFWrapper& b){
+        nslots = a.filter.metadata->nslots + b.filter.metadata->nslots;
+        fprintf(stdout, "nslots %lu", nslots);
+        size_t tot_bits = a.filter.metadata->key_bits;
+        assert(tot_bits == b.filter.metadata->key_bits);
+        if (!qf_malloc(&filter, nslots, tot_bits, 0, QF_HASH_NONE, 0)) {
+            fprintf(stderr, "Creation of combined CQF failed");
+            exit(EXIT_FAILURE);
+        }
+        range = 1ull << tot_bits;
+        qf_merge(&a.filter, &b.filter, &filter);
+    }
+
+    inline bool insert(std::uint64_t hash) {
+        return qf_insert(&filter, hash, 0, 1, QF_NO_LOCK) >= 0;
+    }
+
+    inline bool query(std::uint64_t hash) {
+        return qf_count_key_value(&filter, hash, 0, 0) != 0;
+    }
+
+    inline std::uint64_t sizeFilter() {
+        return sizeof(qfmetadata) + filter.metadata->total_size_in_bytes;
+    }
+
+    inline bool remove(std::uint64_t hash) {
+        return qf_remove(&filter, hash, 0, 1, QF_NO_LOCK) == 1;
+    }
+
+    ~CQFWrapper() {
+        free(filter.metadata);
+        // free(filter);
     }
 };
 
@@ -91,7 +152,7 @@ public:
     }
 
     inline bool remove(std::uint64_t hash) {
-        return true;
+        return false;
     }
 };
 

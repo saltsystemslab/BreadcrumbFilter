@@ -60,8 +60,6 @@ std::vector<std::pair<std::string, std::vector<double>>> readConfig(const char* 
         lineNum++;
     }
 
-    // std::cout << "GOOMOOGOOS" << std::endl;
-
     size_t curLine = 0;
     std::vector<std::pair<std::string, std::vector<double>>> output;
     for(size_t i=0; i < tokens.size();) {

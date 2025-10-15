@@ -47,6 +47,7 @@ set(MORTON_FILES
 
 add_library(vqf OBJECT IMPORTED)
 add_library(PQF ${DPF_FILES})
+add_library(cqf OBJECT IMPORTED)
 target_include_directories(PQF PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 
@@ -54,6 +55,12 @@ set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
   ${PROJECT_SOURCE_DIR}/test/vqf/obj/vqf_filter.o
   ${PROJECT_SOURCE_DIR}/test/vqf/obj/shuffle_matrix_512.o
   ${PROJECT_SOURCE_DIR}/test/vqf/obj/shuffle_matrix_512_16.o
+)
+
+set_property(TARGET cqf PROPERTY IMPORTED_OBJECTS
+  ${PROJECT_SOURCE_DIR}/test/cqf/obj/gqf.o
+  ${PROJECT_SOURCE_DIR}/test/cqf/obj/hashutil.o
+  ${PROJECT_SOURCE_DIR}/test/cqf/obj/partitioned_counter.o
 )
 
 add_executable(Tester ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} ${CUCKOO_FILES} ${MORTON_FILES} test/Tester.cpp test/Tester.hpp test/Config.hpp test/Config.cpp test/TestWrappers.hpp)
@@ -73,4 +80,5 @@ if(USE_CUCKOO_HASH)
 endif()
 target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
 target_link_libraries(Tester PRIVATE vqf)
-target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
+target_link_libraries(Tester PRIVATE cqf)
+target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/cqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
