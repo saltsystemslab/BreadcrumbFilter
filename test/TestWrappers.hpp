@@ -73,6 +73,7 @@ public:
         // roughly rounding qbits = round(log (nslots)) by doing the multiplication by 7/5
         size_t qbits = 63 - _lzcnt_u64 (nslots * 7 / 5);
         size_t tot_bits = rbits + qbits;
+        std::cout << "nslots " << nslots << std::endl;
         // filter = new QF;
         if (!qf_malloc(&filter, nslots, tot_bits, 0, QF_HASH_NONE, 0)) {
             fprintf(stderr, "Creation of CQF failed");
@@ -83,7 +84,8 @@ public:
 
     CQFWrapper(const CQFWrapper& a, const CQFWrapper& b){
         nslots = a.filter.metadata->nslots + b.filter.metadata->nslots;
-        fprintf(stdout, "nslots %lu", nslots);
+        // fprintf(stdout, "nslots %lu", nslots);
+        std::cout << "nslots " << nslots << std::endl;
         size_t tot_bits = a.filter.metadata->key_bits;
         assert(tot_bits == b.filter.metadata->key_bits);
         if (!qf_malloc(&filter, nslots, tot_bits, 0, QF_HASH_NONE, 0)) {

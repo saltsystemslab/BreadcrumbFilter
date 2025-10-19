@@ -505,7 +505,7 @@ namespace PQF {
 #endif
 
                     if(!insertOverflow(qr, firstBackyardQR, secondBackyardQR)) {
-                        std::cerr << "Failed goomogus" << std::endl;
+                        std::cerr << "Backyard merging failed" << std::endl;
                         exit(-1);
                     }
 
