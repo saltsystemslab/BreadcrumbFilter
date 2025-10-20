@@ -162,10 +162,17 @@ int main() {
     // runTests<RemainderStore, 8>(generator);
     // cout << "Testing 4 bit" << endl;
     // runTests<RemainderStore, 4>(generator);
-    cout << "Testing 16 bit" << endl;
-    testBucket<16, 24, 24, RemainderStore, 16>(generator);
-    cout << "Testing 20 bit" << endl;
-    testBucket<20, 16, 16, RemainderStore, 20>(generator);
+
+    for(size_t i{0}; i < 100; i++) {
+        cout << "Testing 8 bit" << endl;
+        testBucket<8, 51, 53, RemainderStore, 8>(generator);
+        cout << "Testing 12 bit" << endl;
+        testBucket<12, 35, 53, RemainderStore, 12>(generator);
+        cout << "Testing 16 bit" << endl;
+        testBucket<16, 24, 24, RemainderStore, 16>(generator);
+        cout << "Testing 20 bit" << endl;
+        testBucket<20, 16, 16, RemainderStore, 20>(generator);
+    }
     // cout << "Testing 12 bit (composite of 4 & 8)" << endl;
     // for(size_t i{0}; i < 100; i++) {
     //     testBucket<12, 35, 52, RemainderStore, 12>(generator);

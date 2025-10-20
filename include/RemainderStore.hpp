@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 #include <algorithm>
 #include <immintrin.h>
@@ -18,8 +19,8 @@ namespace PQF {
         static constexpr bool CanSplit = false;
         static_assert(RemainderSize != RemainderSize, "This remainder size is not supported.");
 
-        inline __m512i loadRemainders();
-        inline void storeRemainders(__m512i remainders);
+        // inline __m512i loadRemainders();
+        // inline void storeRemainders(__m512i remainders);
 
         inline std::uint64_t insert(std::uint64_t remainder, std::size_t loc);
 
@@ -40,6 +41,89 @@ namespace PQF {
 
         // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
         inline std::uint64_t query(std::uint64_t remainder, std::pair<size_t, size_t> bounds);
+    };
+
+    template<std::size_t SizeFirst, std::size_t SizeSecond, std::size_t NumRemainders, std::size_t Offset>
+    struct alignas(1) RemainderStoreTwoPieces {
+        inline static constexpr bool CanSplit = false;
+
+        using StoreFirstType = RemainderStore<SizeFirst, NumRemainders, Offset>;
+        inline static constexpr std::size_t TotalSizeFirst = StoreFirstType::Size;
+        using StoreSecondType = RemainderStore<SizeSecond, NumRemainders, Offset+TotalSizeFirst>;
+        inline static constexpr std::size_t TotalSizeSecond = StoreSecondType::Size;
+        inline static constexpr std::size_t Size = TotalSizeFirst+TotalSizeSecond;
+
+        StoreFirstType storeFirstPart;
+        StoreSecondType storeSecondPart;
+
+        inline std::uint64_t insert(std::uint64_t remainder, std::size_t loc) {
+            if constexpr (DEBUG) {
+                assert(remainder <= (1ull << (SizeFirst + SizeSecond)) - 1);
+                assert(loc <= NumRemainders);
+            }
+
+            uint64_t remainderFirstPart = remainder & ((1ull << SizeFirst) - 1);
+            uint64_t remainderSecondPart = remainder >> SizeFirst;
+            uint64_t overflow = storeFirstPart.insert(remainderFirstPart, loc) << 4ull;
+            overflow |= storeSecondPart.insert(remainderSecondPart, loc);
+            return overflow;
+        }
+
+        inline void remove(std::size_t loc) {
+            storeFirstPart.remove(loc);
+            storeSecondPart.remove(loc);
+        }
+
+        inline std::uint64_t removeReturn(std::size_t loc) {
+            uint64_t retvalFirstPart = storeFirstPart.removeReturn(loc);
+            uint64_t retvalSecondPart = storeSecondPart.removeReturn(loc);
+            return retvalFirstPart + (retvalSecondPart << SizeFirst);
+        }
+
+        inline std::uint64_t get(std::size_t loc) const{
+            uint64_t retvalFirstPart = storeFirstPart.get(loc);
+            uint64_t retvalSecondPart = storeSecondPart.get(loc);
+            return retvalFirstPart + (retvalSecondPart << SizeFirst);
+        }
+
+        inline std::uint64_t query(std::uint64_t remainder, std::pair<size_t, size_t> bounds) {
+            if constexpr (DEBUG) {
+                assert(remainder <= (1ull << (SizeFirst + SizeSecond)) - 1);
+                assert(bounds.second <= NumRemainders);
+            }
+
+            uint64_t remainderFirstPart = remainder & ((1ull << SizeFirst) - 1);
+            uint64_t remainderSecondPart = remainder >> SizeFirst;
+
+            return storeFirstPart.query(remainderFirstPart, bounds) & storeSecondPart.query(remainderSecondPart, bounds);
+        }
+
+        //This is really just adhoc stuff to get the deletions to work, so that we find where the keys are that match the bucket we're coming from
+        inline std::uint64_t query4BitPartMask(std::uint_fast8_t bits, std::uint64_t mask) {
+            return storeSecondPart.queryVectorizedMask(bits, mask);
+        }
+
+        inline std::uint64_t queryVectorizedMask(std::uint64_t remainder, std::uint64_t mask) {
+            if constexpr (DEBUG) {
+                assert(remainder <= (1ull << (SizeFirst + SizeSecond)) - 1);
+            }
+
+            uint64_t remainderFirstPart = remainder & ((1ull << SizeFirst) - 1);
+            uint64_t remainderSecondPart = remainder >> SizeFirst;
+
+            return storeFirstPart.queryVectorizedMask(remainderFirstPart, mask) & storeSecondPart.queryVectorizedMask(remainderSecondPart, mask);
+        }
+    };
+
+
+    #ifdef AVX512
+
+    struct alignas(64) m512iWrapper {
+        static constexpr __m512i zero = {0, 0, 0, 0, 0, 0, 0, 0};
+        __m512i m;
+        constexpr m512iWrapper(__m512i m = zero) : m(m) {}
+        constexpr operator __m512i&() {return m;}
+        constexpr operator __m512i() const {return m;}
     };
 
     template<std::size_t NumRemainders, std::size_t Offset>
@@ -416,78 +500,6 @@ namespace PQF {
         }
     };
 
-    template<std::size_t SizeFirst, std::size_t SizeSecond, std::size_t NumRemainders, std::size_t Offset>
-    struct alignas(1) RemainderStoreTwoPieces {
-        inline static constexpr bool CanSplit = false;
-
-        using StoreFirstType = RemainderStore<SizeFirst, NumRemainders, Offset>;
-        inline static constexpr std::size_t TotalSizeFirst = StoreFirstType::Size;
-        using StoreSecondType = RemainderStore<SizeSecond, NumRemainders, Offset+TotalSizeFirst>;
-        inline static constexpr std::size_t TotalSizeSecond = StoreSecondType::Size;
-        inline static constexpr std::size_t Size = TotalSizeFirst+TotalSizeSecond;
-
-        StoreFirstType storeFirstPart;
-        StoreSecondType storeSecondPart;
-
-        inline std::uint64_t insert(std::uint64_t remainder, std::size_t loc) {
-            if constexpr (DEBUG) {
-                assert(remainder <= (1ull << (SizeFirst + SizeSecond)) - 1);
-                assert(loc <= NumRemainders);
-            }
-
-            uint64_t remainderFirstPart = remainder & ((1ull << SizeFirst) - 1);
-            uint64_t remainderSecondPart = remainder >> SizeFirst;
-            uint64_t overflow = storeFirstPart.insert(remainderFirstPart, loc) << 4ull;
-            overflow |= storeSecondPart.insert(remainderSecondPart, loc);
-            return overflow;
-        }
-
-        inline void remove(std::size_t loc) {
-            storeFirstPart.remove(loc);
-            storeSecondPart.remove(loc);
-        }
-
-        inline std::uint64_t removeReturn(std::size_t loc) {
-            uint64_t retvalFirstPart = storeFirstPart.removeReturn(loc);
-            uint64_t retvalSecondPart = storeSecondPart.removeReturn(loc);
-            return retvalFirstPart + (retvalSecondPart << SizeFirst);
-        }
-
-        inline std::uint64_t get(std::size_t loc) const{
-            uint64_t retvalFirstPart = storeFirstPart.get(loc);
-            uint64_t retvalSecondPart = storeSecondPart.get(loc);
-            return retvalFirstPart + (retvalSecondPart << SizeFirst);
-        }
-
-        inline std::uint64_t query(std::uint64_t remainder, std::pair<size_t, size_t> bounds) {
-            if constexpr (DEBUG) {
-                assert(remainder <= (1ull << (SizeFirst + SizeSecond)) - 1);
-                assert(bounds.second <= NumRemainders);
-            }
-
-            uint64_t remainderFirstPart = remainder & ((1ull << SizeFirst) - 1);
-            uint64_t remainderSecondPart = remainder >> SizeFirst;
-
-            return storeFirstPart.query(remainderFirstPart, bounds) & storeSecondPart.query(remainderSecondPart, bounds);
-        }
-
-        //This is really just adhoc stuff to get the deletions to work, so that we find where the keys are that match the bucket we're coming from
-        inline std::uint64_t query4BitPartMask(std::uint_fast8_t bits, std::uint64_t mask) {
-            return storeSecondPart.queryVectorizedMask(bits, mask);
-        }
-
-        inline std::uint64_t queryVectorizedMask(std::uint64_t remainder, std::uint64_t mask) {
-            if constexpr (DEBUG) {
-                assert(remainder <= (1ull << (SizeFirst + SizeSecond)) - 1);
-            }
-
-            uint64_t remainderFirstPart = remainder & ((1ull << SizeFirst) - 1);
-            uint64_t remainderSecondPart = remainder >> SizeFirst;
-
-            return storeFirstPart.queryVectorizedMask(remainderFirstPart, mask) & storeSecondPart.queryVectorizedMask(remainderSecondPart, mask);
-        }
-    };
-
     template<std::size_t NumRemainders, std::size_t Offset>
     struct alignas(1) RemainderStore<12, NumRemainders, Offset> : RemainderStoreTwoPieces<8, 4, NumRemainders, Offset>{};
 
@@ -655,6 +667,337 @@ namespace PQF {
     template<std::size_t NumRemainders, std::size_t Offset>
     struct alignas(1) RemainderStore<20, NumRemainders, Offset> : RemainderStoreTwoPieces<16, 4, NumRemainders, Offset>{};
 
+    
+
+
+    #else
+
+    // AVX2 implementations
+
+    template<std::size_t NumRemainders, std::size_t Offset>
+    struct alignas(1) RemainderStore<8, NumRemainders, Offset> {
+        inline static constexpr bool CanSplit = false;
+
+        inline static constexpr std::size_t Size = NumRemainders;
+        std::array<std::uint8_t, NumRemainders> remainders;
+
+        inline __m256i* getNonOffsetBucketAddress2() {
+            return reinterpret_cast<__m256i*>(reinterpret_cast<std::uint8_t*>(&remainders[0]) - Offset);
+        }
+
+        inline std::uint_fast8_t insert(std::uint_fast8_t remainder, std::size_t loc) {
+            // std::cout << "inserting " << ((std::size_t)remainder) << " " << loc << std::endl;
+            if (loc >= NumRemainders) return remainder;
+            std::uint_fast8_t retval = remainders[NumRemainders-1];
+            
+            std::memmove((&remainders[loc])+1, &remainders[loc], NumRemainders - loc - 1);
+            remainders[loc] = remainder;
+
+            return retval;
+        }
+
+        inline void remove(std::size_t loc) {
+            // std::cout << "removing " << loc << std::endl;
+            std::memmove(&remainders[loc], (&remainders[loc]) + 1, NumRemainders - loc - 1);
+        }
+
+        //Removes and returns the value that was there
+        inline std::uint_fast8_t removeReturn(std::size_t loc) {
+            std::uint_fast8_t retval = remainders[loc];
+            remove(loc);
+            return retval;
+        }
+
+        inline std::uint_fast8_t removeFirst() {
+            std::uint_fast8_t first = remainders[0];
+            remove(0);
+            return first;
+        }
+
+        inline std::uint64_t queryNonVectorized(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds) {
+            std::uint64_t retMask = 0;
+            for(size_t i{bounds.first}; i < bounds.second; i++) {
+                if(remainders[i] == remainder) {
+                    retMask |= 1ull << i;
+                }
+            }
+            return retMask;
+        }
+
+        inline std::uint64_t queryVectorizedMask(std::uint_fast8_t remainder, std::uint64_t mask) {
+            __m256i remainderVec = _mm256_set1_epi8(remainder);
+            __m256i packedStore1 = _mm256_loadu_si256(getNonOffsetBucketAddress2());
+            __m256i cmp1 = _mm256_cmpeq_epi8(remainderVec, packedStore1);
+            // lolol ridiculous cast but otherwise adds 1s when casting negative number which is rather undesirable.
+            std::uint64_t result1 = static_cast<std::uint64_t>(std::bit_cast<std::uint32_t>(_mm256_movemask_epi8(cmp1))) >> Offset;
+
+            if constexpr (Offset + NumRemainders <= 32) {
+                return result1 & mask;
+            }
+
+            __m256i packedStore2 = _mm256_loadu_si256(getNonOffsetBucketAddress2() + 1);
+            __m256i cmp2 = _mm256_cmpeq_epi8(remainderVec, packedStore2);
+            // Assuming offset < 32 here! Which should be true since otherwise would cross cacheline boundary if more than 32 bytes
+            assert (Offset < 32);
+            std::uint64_t result2 = static_cast<std::uint64_t>(std::bit_cast<std::uint32_t>(_mm256_movemask_epi8(cmp2))) << (32 - Offset);
+
+            // std::cout << result1 << " " << result2 << std::endl;
+
+            return (result1 | result2) & mask;
+        }
+
+        inline std::uint64_t queryVectorized(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds) {
+            return queryVectorizedMask(remainder, (1ull << bounds.second) - (1ull << bounds.first));
+        }
+
+        // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
+        inline std::uint64_t query(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+            if constexpr (DEBUG) {
+                assert(bounds.second <= NumRemainders);
+            }
+            return queryVectorized(remainder, bounds);
+        }
+    };
+
+
+    // 4 BIT
+
+    template<std::size_t NumRemainders, std::size_t Offset>
+    struct alignas(1) RemainderStore<4, NumRemainders, Offset> {
+        static constexpr std::size_t OffsetHalf = (Offset >= 32) ? Offset - 32 : Offset;
+        inline static constexpr bool CanSplit = false;
+
+        inline static constexpr std::size_t Size = (NumRemainders+1)/2;
+        static_assert((Size + Offset-1) / 32 - (Offset / 32) == 0, "AVX2 4 bit store only implemented for something fitting neatly into 256 bits.");
+        std::array<std::uint8_t, Size> remainders;
+
+        inline __m256i* getNonOffsetBucketAddress2() {
+            return reinterpret_cast<__m256i*>(reinterpret_cast<std::uint8_t*>(&remainders[0]) - OffsetHalf);
+        }
+
+        inline static void set4Bits(std::uint_fast8_t& byte, std::uint_fast8_t bitGroup, std::uint_fast8_t bits) {
+            if constexpr (DEBUG) assert(bitGroup <= 1 && bits < 16);
+            byte = (byte & (0b1111 << ((1-bitGroup)*4))) + (bits << (bitGroup*4));
+        }
+
+        //bitGroup = 0 if lower order, 1 if higher order
+        inline static std::uint_fast8_t get4Bits(std::uint_fast8_t byte, std::uint_fast8_t bitGroup) {
+            if constexpr (DEBUG) assert(bitGroup <= 1 && (byte & (0b1111 << (bitGroup*4))) >> (bitGroup*4) <16);
+            return (byte & (0b1111 << (bitGroup*4))) >> (bitGroup*4);
+        }
+
+        inline std::uint64_t get(std::size_t loc) const {
+            return get4Bits(remainders[loc/2], loc % 2);
+        }
+
+        //Just do it direclty with 64 bit numbers rather than avx2, honestly probably not worse (maybe worse but whatever)
+        inline std::uint_fast8_t insert(std::uint_fast8_t remainder, std::size_t loc) {
+            if (loc >= NumRemainders) {
+                return remainder;
+            }
+            std::uint_fast8_t retval = get(NumRemainders-1);
+
+            std::uint64_t temp[4];
+            // WOW &remainders != &remainders[0]!!!! That is crazy! (it was overwriting past the end)
+            std::memcpy(temp, (&remainders[0]) + (loc/2), Size - (loc/2));
+            std::uint64_t first4 = temp[0] & 0b1111;
+            temp[3] = (temp[2] >> 60) | (temp[3] << 4ull);
+            temp[2] = (temp[1] >> 60) | (temp[2] << 4ull);
+            temp[1] = (temp[0] >> 60) | (temp[1] << 4ull);
+            std::uint64_t bitGroup = (loc % 2) * 4;
+            std::uint64_t first_byte = (first4 << (4 - bitGroup)) + (remainder << bitGroup);
+            temp[0] = ((temp[0] & (~0b1111)) << 4ull) | first_byte;
+
+            // std::cout << "jj " << ((uint64_t)remainders[Size]) << std::endl;
+            std::memcpy((&remainders[0]) + (loc/2), temp, Size - (loc/2));
+            // std::cout << "jjk " << ((uint64_t)remainders[Size]) << std::endl;
+
+            return retval;
+        }
+
+        inline void remove(std::size_t loc) {
+            std::uint64_t temp[4];
+            std::memcpy(temp, (&remainders[0]) + loc/2, Size - loc/2);
+            std::uint64_t first4 = temp[0] & 0b1111;
+            temp[0] = (temp[0] >> 4ull) | (temp[1] << 60ull);
+            temp[1] = (temp[1] >> 4ull) | (temp[2] << 60ull);
+            temp[2] = (temp[2] >> 4ull) | (temp[3] << 60ull);
+            temp[3] = temp[3] >> 4ull;
+            //means deleting middle 4 of the first byte, not the first 4, so gotta bring first 4 back
+            if (loc % 2 == 1) 
+                temp[0] = (temp[0] & (~0b1111)) | first4;
+
+            std::memcpy((&remainders[0]) + loc/2, temp, Size - loc/2);
+        }
+
+        //Removes and returns the value that was there
+        inline std::uint_fast8_t removeReturn(std::size_t loc) {
+            std::uint_fast8_t retval = get(loc);
+            remove(loc);
+            return retval;
+        }
+
+        inline std::uint_fast8_t removeFirst() {
+            std::uint_fast8_t first = get(0);
+            remove(0);
+            return first;
+        }
+
+        inline std::uint64_t queryNonVectorized(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds) {
+            std::uint64_t retMask = 0;
+            for(size_t i{bounds.first}; i < bounds.second; i++) {
+                if(get4Bits(remainders[i/2], i%2) == remainder) {
+                    retMask |= 1ull << i;
+                }assert(remainder < 16);
+            }
+            return retMask;
+        }
+
+        std::uint64_t interleave_bits(std::uint64_t a, std::uint64_t b) {
+            constexpr std::uint64_t mask_even = 0x5555555555555555ull;
+            constexpr std::uint64_t mask_odd  = 0xAAAAAAAAAAAAAAAAull;
+
+            std::uint64_t a_spread = _pdep_u64(a, mask_even);
+            std::uint64_t b_spread = _pdep_u64(b, mask_odd);
+            return a_spread | b_spread;
+        }
+
+
+        inline std::uint64_t queryVectorizedMask(std::uint_fast8_t remainder, std::uint64_t mask) {
+            //since we're assuming it fits in 32 bytes shouldn't be too bad.
+
+            constexpr __m256i bottommask = {0x0F0F0F0F0F0F0F0Full, 0x0F0F0F0F0F0F0F0Full, 0x0F0F0F0F0F0F0F0Full, 0x0F0F0F0F0F0F0F0Full};
+            //Why did intel choose to do this as a signed integer wth
+            constexpr long long int topmaskone = std::bit_cast<long long int>(0xF0F0F0F0F0F0F0F0ull);
+            constexpr __m256i topmask = {topmaskone, topmaskone, topmaskone, topmaskone};
+
+            __m256i remainderVec_low = _mm256_set1_epi8(remainder);
+            __m256i remainderVec_high = _mm256_set1_epi8(remainder << 4);
+            __m256i packedStore = _mm256_loadu_si256(getNonOffsetBucketAddress2());
+            __m256i packedStore_low = _mm256_and_si256(packedStore, bottommask);
+            __m256i packedStore_high = _mm256_and_si256(packedStore, topmask);
+            __m256i cmp_low = _mm256_cmpeq_epi8(packedStore_low, remainderVec_low);
+            __m256i cmp_high = _mm256_cmpeq_epi8(packedStore_high, remainderVec_high);
+            std::uint64_t result_low = static_cast<std::uint64_t>(std::bit_cast<std::uint32_t>(_mm256_movemask_epi8(cmp_low)));
+            std::uint64_t result_high = static_cast<std::uint64_t>(std::bit_cast<std::uint32_t>(_mm256_movemask_epi8(cmp_high)));
+            std::uint64_t result = interleave_bits(result_low >> OffsetHalf, result_high >> OffsetHalf);
+
+            // std::cout << result << std::endl;
+
+            return result & mask;
+        }
+
+        inline std::uint64_t queryVectorized(std::uint_fast8_t remainder, std::pair<std::size_t, std::size_t> bounds) {
+            return queryVectorizedMask(remainder, (1ull << bounds.second) - (1ull << bounds.first));
+        }
+
+        // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
+        inline std::uint64_t query(std::uint_fast8_t remainder, std::pair<size_t, size_t> bounds) {
+            if constexpr (DEBUG) {
+                assert(bounds.second <= NumRemainders);
+            }
+            return queryVectorized(remainder, bounds);
+        }
+    };
+
+    template<std::size_t NumRemainders, std::size_t Offset>
+    struct alignas(1) RemainderStore<12, NumRemainders, Offset> : RemainderStoreTwoPieces<8, 4, NumRemainders, Offset>{};
+
+    template<std::size_t NumRemainders, std::size_t Offset>
+    struct alignas(1) RemainderStore<16, NumRemainders, Offset> {
+        inline static constexpr bool CanSplit = false;
+
+        inline static constexpr std::size_t Size = NumRemainders * 2;
+        std::array<std::uint16_t, NumRemainders> remainders;
+
+        static_assert(Offset % 2 == 0);
+
+        inline static constexpr size_t WordOffset = Offset/2;
+
+        inline __m256i* getNonOffsetBucketAddress2() {
+            return reinterpret_cast<__m256i*>(reinterpret_cast<std::uint16_t*>(&remainders[0]) - WordOffset);
+        }
+
+        inline std::uint_fast16_t insert(std::uint_fast16_t remainder, std::size_t loc) {
+            // std::cout << "inserting " << ((std::size_t)remainder) << " " << loc << " " << remainders[0] << std::endl;
+            if (loc >= NumRemainders) return remainder;
+            std::uint_fast16_t retval = remainders[NumRemainders-1];
+            
+            std::memmove((&remainders[loc])+1, &remainders[loc], (NumRemainders - loc - 1)*2);
+            remainders[loc] = remainder;
+
+            return retval;
+        }
+
+        inline void remove(std::size_t loc) {
+            // std::cout << "removing " << loc << std::endl;
+            std::memmove(&remainders[loc], (&remainders[loc]) + 1, (NumRemainders - loc - 1)*2);
+        }
+
+        //Removes and returns the value that was there
+        inline std::uint_fast16_t removeReturn(std::size_t loc) {
+            std::uint_fast16_t retval = remainders[loc];
+            remove(loc);
+            return retval;
+        }
+
+        inline std::uint_fast16_t removeFirst() {
+            std::uint_fast16_t first = remainders[0];
+            remove(0);
+            return first;
+        }
+
+        inline std::uint64_t queryNonVectorized(std::uint_fast16_t remainder, std::pair<std::size_t, std::size_t> bounds) {
+            std::uint64_t retMask = 0;
+            for(size_t i{bounds.first}; i < bounds.second; i++) {
+                if(remainders[i] == remainder) {
+                    retMask |= 1ull << i;
+                }
+            }
+            return retMask;
+        }
+
+        inline std::uint64_t queryVectorizedMask(std::uint_fast16_t remainder, std::uint64_t mask) {
+            // std::cout << remainders[12] << " " << remainder << " " << WordOffset << std::endl;
+            __m256i remainderVec = _mm256_set1_epi16(remainder);
+            __m256i packedStore1 = _mm256_loadu_si256(getNonOffsetBucketAddress2());
+            __m256i cmp1 = _mm256_cmpeq_epi16(remainderVec, packedStore1);
+            
+            // std::cout << std::bit_cast<std::uint32_t>(_mm256_movemask_epi8(cmp1)) << std::endl;
+            std::uint64_t result1 = static_cast<std::uint64_t>(_pext_u32(std::bit_cast<std::uint32_t>(_mm256_movemask_epi8(cmp1)), 0x55555555u)) >> WordOffset;
+
+            if constexpr (WordOffset + NumRemainders <= 16) {
+                return result1 & mask;
+            }
+
+            __m256i packedStore2 = _mm256_loadu_si256(getNonOffsetBucketAddress2() + 1);
+            __m256i cmp2 = _mm256_cmpeq_epi16(remainderVec, packedStore2);
+            // Assuming offset < 32 here! Which should be true since otherwise would cross cacheline boundary if more than 32 bytes
+            assert (Offset < 32);
+            std::uint64_t result2 = static_cast<std::uint64_t>(_pext_u32(std::bit_cast<std::uint32_t>(_mm256_movemask_epi8(cmp2)), 0x55555555u)) << (16 - WordOffset);
+
+            // std::cout << result1 << " " << result2 << " " << (*((uint16_t*)(&packedStore2))) << std::endl;
+
+            return (result1 | result2) & mask;
+        }
+
+        inline std::uint64_t queryVectorized(std::uint_fast16_t remainder, std::pair<std::size_t, std::size_t> bounds) {
+            return queryVectorizedMask(remainder, (1ull << bounds.second) - (1ull << bounds.first));
+        }
+
+        // Returns a bitmask of which remainders match within the bounds. Maybe this should return not a uint64_t but a mask type? Cause we should be able to do everything with them
+        inline std::uint64_t query(std::uint_fast16_t remainder, std::pair<size_t, size_t> bounds) {
+            if constexpr (DEBUG) {
+                assert(bounds.second <= NumRemainders);
+            }
+            return queryVectorized(remainder, bounds);
+        }
+    };
+
+    template<std::size_t NumRemainders, std::size_t Offset>
+    struct alignas(1) RemainderStore<20, NumRemainders, Offset> : RemainderStoreTwoPieces<16, 4, NumRemainders, Offset>{};
+
+    #endif
 }
 
 #endif
