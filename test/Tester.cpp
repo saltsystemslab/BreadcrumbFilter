@@ -13,9 +13,13 @@
 #include <limits>
 #include <sys/time.h>
 
+
+using namespace std;
+using namespace std::literals::string_view_literals;
+
 //returns microseconds
 double runTest(std::function<void(void)> t) {
-    std::chrono::time_point <chrono::system_clock> startTime, endTime;
+    std::chrono::time_point <std::chrono::system_clock> startTime, endTime;
     startTime = std::chrono::system_clock::now();
     asm volatile ("":: : "memory");
 
@@ -787,7 +791,7 @@ struct MixedWorkloadMultithreadedBenchmarkWrapper {
             std::cerr << "Cannot test multiple threads when the filter does not support it!" << std::endl;
             return {};
         }
-        size_t numTicks = s.loadFactorTicks;
+        // size_t numTicks = s.loadFactorTicks;
         if (!s.maxLoadFactor) {
             std::cerr << "Does not have a max load factor!" << std::endl;
             return std::vector < double > {};
@@ -803,7 +807,7 @@ struct MixedWorkloadMultithreadedBenchmarkWrapper {
         std::vector <size_t> keys = generateKeys<FT>(filter, N);
         std::vector <size_t> other_keys = generateKeys<FT>(filter, N);
         std::vector<double> results;
-        size_t ret;
+        // size_t ret;
         std::vector <size_t> threadResults(numThreads);
         std::vector <size_t> oprs(num_iter);
         std::vector <size_t> opr_vals(num_iter);
@@ -1395,6 +1399,7 @@ public:
     }
 };
 
+#ifdef __AVX512BW__
 using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wrapper, PQF_8_22BB_FRQ_Wrapper,
         PQF_8_31_Wrapper, PQF_8_31_FRQ_Wrapper, PQF_8_62_Wrapper, PQF_8_62_FRQ_Wrapper,
         PQF_8_53_Wrapper, PQF_8_53_FRQ_Wrapper, PQF_16_36_Wrapper, PQF_16_36_FRQ_Wrapper,
@@ -1407,6 +1412,17 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         Morton3_12_Wrapper, Morton3_18_Wrapper,
         VQF_Wrapper, VQFT_Wrapper, BBF_Wrapper, PQF_8_3_Wrapper,
         CQF_Wrapper>;
+#else
+using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wrapper, PQF_8_22BB_FRQ_Wrapper,
+        PQF_8_31_Wrapper, PQF_8_31_FRQ_Wrapper, PQF_8_62_Wrapper, PQF_8_62_FRQ_Wrapper,
+        PQF_8_53_Wrapper, PQF_8_53_FRQ_Wrapper, PQF_16_36_Wrapper, PQF_16_36_FRQ_Wrapper,
+        PQF_8_21_T_Wrapper, PQF_8_21_FRQ_T_Wrapper, PQF_8_52_T_Wrapper, PQF_8_52_FRQ_T_Wrapper,
+        PQF_16_35_T_Wrapper, PQF_16_35_FRQ_T_Wrapper,
+        OriginalCF12_Wrapper, OriginalCF16_Wrapper,
+        Morton3_12_Wrapper, Morton3_18_Wrapper,
+        VQF_Wrapper, VQFT_Wrapper, PQF_8_3_Wrapper,
+        CQF_Wrapper>;
+#endif
 
 using TestWrapperTuple = std::tuple<BenchmarkWrapper,
         MultithreadedWrapper,

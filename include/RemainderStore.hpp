@@ -116,7 +116,7 @@ namespace PQF {
     };
 
 
-    #ifdef AVX512
+    #ifdef __AVX512BW__
 
     struct alignas(64) m512iWrapper {
         static constexpr __m512i zero = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -503,7 +503,7 @@ namespace PQF {
     template<std::size_t NumRemainders, std::size_t Offset>
     struct alignas(1) RemainderStore<12, NumRemainders, Offset> : RemainderStoreTwoPieces<8, 4, NumRemainders, Offset>{};
 
-    //Requires the remainder to be aligned to two byte boundary, as otherwise could not use the 2-byte AVX512 instruction and would be inneficient
+    //Requires the remainder to be aligned to two byte boundary, as otherwise could not use the 2-byte __AVX512BW__ instruction and would be inneficient
     template<std::size_t NumRemainders, std::size_t Offset>
     struct alignas(1) RemainderStore<16, NumRemainders, Offset> {
         inline static constexpr bool CanSplit = false;
@@ -683,6 +683,10 @@ namespace PQF {
 
         inline __m256i* getNonOffsetBucketAddress2() {
             return reinterpret_cast<__m256i*>(reinterpret_cast<std::uint8_t*>(&remainders[0]) - Offset);
+        }
+
+        inline std::uint64_t get(std::size_t loc) const {
+            return remainders[loc];
         }
 
         inline std::uint_fast8_t insert(std::uint_fast8_t remainder, std::size_t loc) {
@@ -916,6 +920,10 @@ namespace PQF {
 
         inline __m256i* getNonOffsetBucketAddress2() {
             return reinterpret_cast<__m256i*>(reinterpret_cast<std::uint16_t*>(&remainders[0]) - WordOffset);
+        }
+
+        inline std::uint64_t get(std::size_t loc) const {
+            return remainders[loc];
         }
 
         inline std::uint_fast16_t insert(std::uint_fast16_t remainder, std::size_t loc) {

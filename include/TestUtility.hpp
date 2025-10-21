@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <immintrin.h>
 
-// #define AVX512
+// #define __AVX512BW__
 
 namespace PQF {
     constexpr bool DEBUG = false;

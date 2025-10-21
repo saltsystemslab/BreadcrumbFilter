@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
+option(USE_AVX512 "Use AVX512 (alternative is AVX512)" ON)
+
 set(CMAKE_C_COMPILER /usr/bin/gcc-11)
 set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
 project(BenchFilter)
@@ -8,7 +10,12 @@ find_package(OpenSSL REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_FLAGS "-march=native -pthread")
+
+if(USE_AVX512)
+    set(CMAKE_CXX_FLAGS "-march=native -pthread")
+else()
+    set(CMAKE_CXX_FLAGS "-march=x86-64-v3 -pthread")
+endif()
 
 
 include(CheckIPOSupported)
@@ -50,12 +57,17 @@ add_library(PQF ${DPF_FILES})
 add_library(cqf OBJECT IMPORTED)
 target_include_directories(PQF PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
-
-set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
-  ${PROJECT_SOURCE_DIR}/test/vqf/obj/vqf_filter.o
-  ${PROJECT_SOURCE_DIR}/test/vqf/obj/shuffle_matrix_512.o
-  ${PROJECT_SOURCE_DIR}/test/vqf/obj/shuffle_matrix_512_16.o
-)
+if(USE_AVX512)
+    set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
+    ${PROJECT_SOURCE_DIR}/test/vqf/obj/vqf_filter.o
+    ${PROJECT_SOURCE_DIR}/test/vqf/obj/shuffle_matrix_512.o
+    ${PROJECT_SOURCE_DIR}/test/vqf/obj/shuffle_matrix_512_16.o
+    )
+else()
+    set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
+    ${PROJECT_SOURCE_DIR}/test/vqf/obj/vqf_filter.o
+    )
+endif()
 
 set_property(TARGET cqf PROPERTY IMPORTED_OBJECTS
   ${PROJECT_SOURCE_DIR}/test/cqf/obj/gqf.o
@@ -63,7 +75,11 @@ set_property(TARGET cqf PROPERTY IMPORTED_OBJECTS
   ${PROJECT_SOURCE_DIR}/test/cqf/obj/partitioned_counter.o
 )
 
-add_executable(Tester ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} ${CUCKOO_FILES} ${MORTON_FILES} test/Tester.cpp test/Tester.hpp test/Config.hpp test/Config.cpp test/TestWrappers.hpp)
+if(USE_AVX512)
+    add_executable(Tester ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} ${CUCKOO_FILES} ${MORTON_FILES} test/Tester.cpp test/Tester.hpp test/Config.hpp test/Config.cpp test/TestWrappers.hpp)
+else()
+    add_executable(Tester ${DPF_FILES} ${TC_FILES} ${TC_SHORTCUT_FILES} ${CUCKOO_FILES} ${MORTON_FILES} test/Tester.cpp test/Tester.hpp test/Config.hpp test/Config.cpp test/TestWrappers.hpp)
+endif()
 target_include_directories(Tester PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 if( supported )
@@ -81,4 +97,8 @@ endif()
 target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
 target_link_libraries(Tester PRIVATE vqf)
 target_link_libraries(Tester PRIVATE cqf)
-target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/cqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
+if(USE_AVX512)
+    target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/cqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
+else()
+    target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/cqf/include" "test/cuckoofilter/src" "test/morton_filter")
+endif()

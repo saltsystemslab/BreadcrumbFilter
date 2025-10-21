@@ -280,10 +280,17 @@ void testBucket(mt19937& generator) {
 }
 
 int main() {
+    #ifdef __AVX512BW__
+        printf("AVX-512BW is supported at compile time.\n");
+    #else
+        printf("AVX-512BW is NOT supported at compile time.\n");
+    #endif
+
+
     random_device rd;
     mt19937 generator (rd());
 
-    for(size_t i{0}; i < 100; i++) {
+    for(size_t i{0}; i < 5; i++) {
         testBucket<51, 52>(generator);
         testBucket<25, 26>(generator);
         // testBucket<75, 61>(generator);

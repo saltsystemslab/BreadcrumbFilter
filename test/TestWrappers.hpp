@@ -6,13 +6,17 @@
 #include "gqf_int.h"
 
 #include "vqf_filter.h"
+
+#ifdef __AVX512BW__
 #include "min_pd256.hpp"
 #include "tc-sym.hpp"
 #include "TC-shortcut.hpp"
 #include "wrappers.hpp"
-// #include "cuckoofilter.h"
-#include "morton_sample_configs.h"
 #include "simd-block-fixed-fpp.h"
+#endif
+
+#include "cuckoofilter.h"
+#include "morton_sample_configs.h"
 #include <immintrin.h>
 #include <algorithm>
 
@@ -117,6 +121,8 @@ public:
         // free(filter);
     }
 };
+
+#ifdef __AVX512BW__
 
 //! Wrapper class from blocked bloom filter. Code borrowed from Prefix-Filter.
 //! This code was "taken" from Prefix-Filter/main-built.cpp
@@ -269,6 +275,8 @@ public:
             return false;
     }
 };
+
+#endif
 
 template<typename ItemType, size_t bits_per_item>
 class CuckooWrapper {

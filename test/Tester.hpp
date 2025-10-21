@@ -9,7 +9,7 @@
 #include "PartitionQuotientFilter.hpp"
 #include "TestWrappers.hpp"
 
-double runTest(function<void(void)> t);
+double runTest(std::function<void(void)> t);
 
 std::vector<size_t> splitRange(size_t start, size_t end, size_t numSegs);
 std::mt19937_64 createGenerator();
@@ -52,6 +52,7 @@ struct PQF_Wrapper_SingleT {
     static constexpr bool canMerge = true;
 };
 
+#ifdef __AVX512BW__
 
 static const char PQF_8_22_Wrapper_str[] = "PQF_8_22";
 using PQF_8_22_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22, PQF_8_22_Wrapper_str>;
@@ -84,6 +85,39 @@ using PQF_16_36_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_16_36, PQF_16_36_Wrapper_
 static const char PQF_16_36_FRQ_Wrapper_str[] = "PQF_16_36_FRQ";
 using PQF_16_36_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_16_36_FRQ, PQF_16_36_FRQ_Wrapper_str>;
 
+#else
+static const char PQF_8_22_Wrapper_str[] = "PQF_8_22_AVX2";
+using PQF_8_22_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22, PQF_8_22_Wrapper_str>;
+static const char PQF_8_3_Wrapper_str[] = "PQF_8_3_AVX2";
+using PQF_8_3_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_3, PQF_8_3_Wrapper_str>;
+static const char PQF_8_22_FRQ_Wrapper_str[] = "PQF_8_22_FRQ_AVX2";
+using PQF_8_22_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22_FRQ, PQF_8_22_FRQ_Wrapper_str>;
+static const char PQF_8_22BB_Wrapper_str[] = "PQF_8_22BB_AVX2";
+using PQF_8_22BB_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22BB, PQF_8_22BB_Wrapper_str>;
+static const char PQF_8_22BB_FRQ_Wrapper_str[] = "PQF_8_22BB_FRQ_AVX2";
+using PQF_8_22BB_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_22BB_FRQ, PQF_8_22BB_FRQ_Wrapper_str>;
+
+static const char PQF_8_31_Wrapper_str[] = "PQF_8_31_AVX2";
+using PQF_8_31_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_31, PQF_8_31_Wrapper_str>;
+static const char PQF_8_31_FRQ_Wrapper_str[] = "PQF_8_31_FRQ_AVX2";
+using PQF_8_31_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_31_FRQ, PQF_8_31_FRQ_Wrapper_str>;
+
+static const char PQF_8_62_Wrapper_str[] = "PQF_8_62_AVX2";
+using PQF_8_62_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_62, PQF_8_62_Wrapper_str>;
+static const char PQF_8_62_FRQ_Wrapper_str[] = "PQF_8_62_FRQ_AVX2";
+using PQF_8_62_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_62_FRQ, PQF_8_62_FRQ_Wrapper_str>;
+
+static const char PQF_8_53_Wrapper_str[] = "PQF_8_53_AVX2";
+using PQF_8_53_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_53, PQF_8_53_Wrapper_str>;
+static const char PQF_8_53_FRQ_Wrapper_str[] = "PQF_8_53_FRQ_AVX2";
+using PQF_8_53_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_8_53_FRQ, PQF_8_53_FRQ_Wrapper_str>;
+
+static const char PQF_16_36_Wrapper_str[] = "PQF_16_36_AVX2";
+using PQF_16_36_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_16_36, PQF_16_36_Wrapper_str>;
+static const char PQF_16_36_FRQ_Wrapper_str[] = "PQF_16_36_FRQ_AVX2";
+using PQF_16_36_FRQ_Wrapper = PQF_Wrapper_SingleT<PQF::PQF_16_36_FRQ, PQF_16_36_FRQ_Wrapper_str>;
+#endif
+
 
 template<typename FT, const char* n>
 struct PQF_Wrapper_MultiT {
@@ -96,6 +130,7 @@ struct PQF_Wrapper_MultiT {
     static constexpr bool canMerge = false; //set to true if implement multithreaded merging
 };
 
+#ifdef __AVX512BW__
 static const char PQF_8_21_T_Wrapper_str[] = "PQF_8_21_T";
 using PQF_8_21_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_21_T, PQF_8_21_T_Wrapper_str>;
 static const char PQF_8_21_FRQ_T_Wrapper_str[] = "PQF_8_21_FRQ_T";
@@ -111,7 +146,27 @@ using PQF_16_35_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_16_35_T, PQF_16_35_T_Wra
 static const char PQF_16_35_FRQ_T_Wrapper_str[] = "PQF_16_35_FRQ_T";
 using PQF_16_35_FRQ_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_16_35_FRQ_T, PQF_16_35_FRQ_T_Wrapper_str>;
 
+#else
 
+static const char PQF_8_21_T_Wrapper_str[] = "PQF_8_21_T_AVX2";
+using PQF_8_21_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_21_T, PQF_8_21_T_Wrapper_str>;
+static const char PQF_8_21_FRQ_T_Wrapper_str[] = "PQF_8_21_FRQ_T_AVX2";
+using PQF_8_21_FRQ_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_21_FRQ_T, PQF_8_21_FRQ_T_Wrapper_str>;
+
+static const char PQF_8_52_T_Wrapper_str[] = "PQF_8_52_T_AVX2";
+using PQF_8_52_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_52_T, PQF_8_52_T_Wrapper_str>;
+static const char PQF_8_52_FRQ_T_Wrapper_str[] = "PQF_8_52_FRQ_T_AVX2";
+using PQF_8_52_FRQ_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_8_52_FRQ_T, PQF_8_52_FRQ_T_Wrapper_str>;
+
+static const char PQF_16_35_T_Wrapper_str[] = "PQF_16_35_T_AVX2";
+using PQF_16_35_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_16_35_T, PQF_16_35_T_Wrapper_str>;
+static const char PQF_16_35_FRQ_T_Wrapper_str[] = "PQF_16_35_FRQ_T_AVX2";
+using PQF_16_35_FRQ_T_Wrapper = PQF_Wrapper_MultiT<PQF::PQF_16_35_FRQ_T, PQF_16_35_FRQ_T_Wrapper_str>;
+
+#endif
+
+
+#ifdef __AVX512BW__
 //PF Types
 struct PF_TC_Wrapper {
     // using type = PFFilterAPIWrapper<Prefix_Filter<TC_shortcut>, sizePF<TC_shortcut, sizeTC>, false>;
@@ -184,6 +239,8 @@ struct BBFF_Wrapper {
     static constexpr bool canMerge = false;
 };
 
+#endif
+
 
 //Original cuckoo filter
 struct OriginalCF12_Wrapper {
@@ -244,6 +301,8 @@ struct VQFT_Wrapper {
     static constexpr bool canMerge = false;
 };
 
+#ifdef __AVX512BW__
+
 struct BBF_Wrapper {
     using type = BBFWrapper;
     static constexpr std::string_view name = "BBFT";
@@ -252,6 +311,8 @@ struct BBF_Wrapper {
     static constexpr bool canDelete = false;
     static constexpr bool canMerge = false;
 };
+
+#endif
 
 struct CQF_Wrapper {
     using type = CQFWrapper;

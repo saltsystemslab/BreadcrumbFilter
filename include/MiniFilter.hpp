@@ -204,7 +204,7 @@ namespace PQF {
             }
         }
 
-        #ifdef AVX512
+        #ifdef __AVX512BW__
 
         //really just a "__m128i" version of ~((1ull << loc) - 1) or like -(1ull << loc)
         inline static constexpr __m128i getShiftMask(std::size_t loc) {
