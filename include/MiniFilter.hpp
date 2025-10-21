@@ -2,6 +2,7 @@
 #define MINI_FILTER_HPP
 
 #include <cstdint>
+#include <cstring>
 #include <array>
 #include <utility>
 #include <immintrin.h>
@@ -203,6 +204,8 @@ namespace PQF {
             }
         }
 
+        #ifdef AVX512
+
         //really just a "__m128i" version of ~((1ull << loc) - 1) or like -(1ull << loc)
         inline static constexpr __m128i getShiftMask(std::size_t loc) {
             std::array<std::uint64_t, 2> ulongs;
@@ -293,6 +296,89 @@ namespace PQF {
             return carryBit;
         }
 
+        inline void remove(std::size_t miniBucketIndex, std::size_t keyIndex) {
+            std::size_t index = miniBucketIndex + keyIndex;
+            if constexpr (NumBytes <= 8){
+                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                uint64_t shiftBitIndex = 1ull << index;
+                uint64_t shiftMask = (-(shiftBitIndex)) & lastSegmentMask;
+                uint64_t shiftedSegment = ((*fastCastFilter) & shiftMask) >> 1;
+                *fastCastFilter = (*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask);
+            }
+            else if (NumBytes > 8 && NumBytes <= 16) {
+                __m128i* castedFilterAddress = reinterpret_cast<__m128i*>(&filterBytes);
+                __m128i filterVec = _mm_loadu_si128(castedFilterAddress);
+                __m128i filterVecShiftedRightByLong = _mm_bsrli_si128(filterVec, 8);
+                __m128i shiftedFilterVec = _mm_shrdi_epi64(filterVec, filterVecShiftedRightByLong, 1);
+                filterVec = _mm_ternarylogic_epi32(filterVec, shiftedFilterVec, ShiftMasks[index], 0b11011000);
+                filterVec = _mm_and_si128(filterVec, ZeroMasks[NumBits-1]); //Ensuring we are zeroing out the bit we just added, as we assume the person is removing a key, not a bucket (as that would make no sense)
+                _mm_storeu_si128(castedFilterAddress, filterVec);
+            }
+        }
+
+        #else
+
+        inline bool shiftFilterBits(std::size_t in) {
+            // std::cout << "shifting" << std::endl;
+            int64_t index = in;
+            uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+            std::size_t endIndex = NumBits;
+            uint64_t oldCarryBit = 0;
+            uint64_t carryBit = 0;
+            // thankfully didn't remove this loop, hehe
+            for(size_t i{0}; i < NumUllongs; i++, fastCastFilter++, index-=64, endIndex-=64) {
+                std::size_t segmentStartIndex = std::max((long long)index, 0ll);
+                if(segmentStartIndex >= 64) continue;
+                uint64_t shiftBitIndex = 1ull << segmentStartIndex;
+                uint64_t shiftMask = -(shiftBitIndex);
+                uint64_t shiftedSegment = ((*fastCastFilter) & shiftMask) << 1;
+                if(endIndex < 64) {
+                    shiftMask &= (1ull << endIndex) - 1;
+                    carryBit = (*fastCastFilter) & (1ull << (endIndex-1));
+                }
+                else {
+                    carryBit = (*fastCastFilter) & (1ull << 63);
+                }
+                carryBit = carryBit != 0;
+                *fastCastFilter = (*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask) | (oldCarryBit << segmentStartIndex);
+                oldCarryBit = carryBit;
+            }
+
+            return carryBit;
+        }
+
+        inline void remove(std::size_t miniBucketIndex, std::size_t keyIndex) {
+            std::size_t index = miniBucketIndex + keyIndex;
+            // std::cout << "removing at " << index << std::endl;
+            if constexpr (NumBytes <= 8){
+                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
+                uint64_t shiftBitIndex = 1ull << index;
+                uint64_t shiftMask = (-(shiftBitIndex)) & lastSegmentMask;
+                uint64_t shiftedSegment = ((*fastCastFilter) & shiftMask) >> 1;
+                *fastCastFilter = (*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask);
+            }
+            else if (NumBytes > 8 && NumBytes <= 16) {
+                uint64_t temp[2] = {0, 0};
+                // printBinaryUInt64(*(uint64_t*)(&filterBytes[0]), true);
+                // printBinaryUInt64(*(uint64_t*)(&filterBytes[8]), true);
+                size_t offset = (index >= 64) * 8;
+                std::memcpy(temp, &filterBytes[0] + offset, NumBytes - offset);
+                
+                uint64_t shiftBitIndex = 1ull << (index % 64);
+                uint64_t shiftMask = (-(shiftBitIndex));
+                uint64_t shiftedSegment = ((temp[0] & shiftMask) >> 1) | (temp[1] << 63ull);
+                temp[0] = (temp[0] & (~shiftMask)) | (shiftedSegment & shiftMask);
+                temp[1] >>= 1;
+
+                std::memcpy(&filterBytes[0] + offset, temp, NumBytes - offset);
+                // printBinaryUInt64(*(uint64_t*)(&filterBytes[0]), true);
+                // printBinaryUInt64(*(uint64_t*)(&filterBytes[8]), true);
+            }
+        }
+
+        #endif
+
+
         //TODO: specialize it for just up to two ullongs to simplify the code (& possibly small speedup but probably not)
         //Keys are zeros, so "fix overflow" basically makes it so  that we overflow the key, not the mini bucket. We essentially aim to replace the last zero with a one
         inline uint64_t fixOverflow() {
@@ -335,26 +421,6 @@ namespace PQF {
                 assert(countKeys() == x+1 || countKeys() == NumKeys);
             }
             return -1ull;
-        }
-
-        inline void remove(std::size_t miniBucketIndex, std::size_t keyIndex) {
-            std::size_t index = miniBucketIndex + keyIndex;
-            if constexpr (NumBytes <= 8){
-                uint64_t* fastCastFilter = reinterpret_cast<uint64_t*> (&filterBytes);
-                uint64_t shiftBitIndex = 1ull << index;
-                uint64_t shiftMask = (-(shiftBitIndex)) & lastSegmentMask;
-                uint64_t shiftedSegment = ((*fastCastFilter) & shiftMask) >> 1;
-                *fastCastFilter = (*fastCastFilter & (~shiftMask)) | (shiftedSegment & shiftMask);
-            }
-            else if (NumBytes > 8 && NumBytes <= 16) {
-                __m128i* castedFilterAddress = reinterpret_cast<__m128i*>(&filterBytes);
-                __m128i filterVec = _mm_loadu_si128(castedFilterAddress);
-                __m128i filterVecShiftedRightByLong = _mm_bsrli_si128(filterVec, 8);
-                __m128i shiftedFilterVec = _mm_shrdi_epi64(filterVec, filterVecShiftedRightByLong, 1);
-                filterVec = _mm_ternarylogic_epi32(filterVec, shiftedFilterVec, ShiftMasks[index], 0b11011000);
-                filterVec = _mm_and_si128(filterVec, ZeroMasks[NumBits-1]); //Ensuring we are zeroing out the bit we just added, as we assume the person is removing a key, not a bucket (as that would make no sense)
-                _mm_storeu_si128(castedFilterAddress, filterVec);
-            }
         }
 
         //Maybe remove the for loop & specialize it for <= 2 ullongs
