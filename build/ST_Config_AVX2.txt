@@ -1,0 +1,22 @@
+Benchmark
+NumKeys
+1048576 
+4194304 
+67108864 
+268435456
+NumThreads 1
+NumTrials 5
+NumReplicants 1
+LoadFactorTicks 20
+
+MaxLoadFactor 0.83
+PQF_8_22_AVX2
+
+MaxLoadFactor 0.915
+PQF_8_53_FRQ_AVX2
+
+MaxLoadFactor 0.88
+PQF_16_36_FRQ_AVX2
+
+MaxLoadFactor 0.93
+VQF_AVX2

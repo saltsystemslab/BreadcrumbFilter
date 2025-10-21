@@ -280,6 +280,8 @@ struct Morton3_18_Wrapper {
     static constexpr bool canMerge = false;
 };
 
+
+#ifdef __AVX512BW__
 //VQF
 struct VQF_Wrapper {
     using type = VQFWrapper; //kinda bad
@@ -300,6 +302,31 @@ struct VQFT_Wrapper {
     static constexpr bool canDelete = true;
     static constexpr bool canMerge = false;
 };
+
+#else
+
+//VQF
+struct VQF_Wrapper {
+    using type = VQFWrapper; //kinda bad
+    static constexpr std::string_view name = "VQF_AVX2";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
+};
+
+//not a real different one from VQF, but just for the output distinction. VQF needs macro change, so we just recompile the VQF for a threaded test
+struct VQFT_Wrapper {
+    using type = VQFWrapper; //kinda bad
+    static constexpr std::string_view name = "VQFT_AVX2";
+    static constexpr bool threaded = true;
+    static constexpr bool onlyInsertsThreaded = true;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
+};
+
+#endif
 
 #ifdef __AVX512BW__
 
