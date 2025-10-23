@@ -1,4 +1,5 @@
 #include "Config.hpp"
+#include "TesterTools.hpp"
 
 #include <vector>
 #include <iostream>
@@ -96,4 +97,79 @@ std::vector<std::pair<std::string, std::vector<double>>> readConfig(const char* 
     }
 
     return output;
+}
+
+
+std::ostream &operator<<(std::ostream &os, const Settings &s) {
+    os << "# Settings for a particular run:" << "\n";
+    os << s.TestName << "\n";
+    os << "NumKeys " << s.N << "\n";
+    os << "NumThreads " << s.numThreads << "\n";
+    os << "NumReplicants " << s.numReplicants << "\n";
+    os << "LoadFactorTicks " << s.loadFactorTicks << "\n";
+    if (s.maxLoadFactor)
+        os << "MaxLoadFactor " << (*(s.maxLoadFactor)) << "\n";
+    os << "MinLoadFactor " << s.minLoadFactor << "\n";
+    os << "MaxInsertDeleteRatio " << s.maxInsertDeleteRatio << "\n";
+    os << s.FTName << "\n";
+    return os;
+}
+
+
+size_t roundDoublePos(double d) {
+    long long l = std::llround(d);
+    if (l < 0) {
+        std::cerr << "Trying to round a double to positive number, but it was negative (probably settings issue)"
+                  << std::endl;
+        exit(-1);
+    }
+    return static_cast<size_t>(l);
+}
+
+std::vector<Settings> CompressedSettings::getSettingsCombos() {
+    std::vector <Settings> output;
+    for (size_t N: Ns) {
+        for (size_t NT: numThreads) {
+            assert(numTrials.has_value());
+            for (size_t i = 0; i < (*numTrials); i++) {
+                output.push_back(Settings{TestName, FTName, N, numReplicants, NT, loadFactorTicks, maxLoadFactor,
+                                            minLoadFactor, maxInsertDeleteRatio, other_settings});
+            }
+        }
+    }
+    return output;
+}
+
+void CompressedSettings::setval(std::string type, std::vector<double> values) {
+    if (Settings::SettingTypes().count(type) == 0) {
+        std::cerr << "Set an incorrect setting: " << type << std::endl;
+        exit(-1);
+    }
+
+    if (type == "NumKeys"s) {
+        Ns = transform_vector(values, &roundDoublePos);
+    } else if (type == "NumThreads"s) {
+        numThreads = transform_vector(values, &roundDoublePos);
+    } else {
+        if (values.size() != 1) {
+            std::cerr << "Can only set one value for " << type << std::endl;
+            exit(-1);
+        }
+        if (type == "NumTrials") {
+            numTrials = static_cast<size_t>(values[0]);
+        } else if (type == "NumReplicants"s) {
+            numReplicants = static_cast<size_t>(values[0]);
+        } else if (type == "LoadFactorTicks"s) {
+            loadFactorTicks = static_cast<size_t>(values[0]);
+        } else if (type == "MaxLoadFactor") {
+            maxLoadFactor = values[0];
+        } else if (type == "MinLoadFactor") {
+            minLoadFactor = values[0];
+        } else if (type == "MaxInsertDeleteRatio") {
+            maxInsertDeleteRatio = values[0];
+        }
+        else {
+            other_settings[type] = values[0];
+        }
+    }
 }

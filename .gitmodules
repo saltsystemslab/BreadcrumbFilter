@@ -14,3 +14,6 @@
 [submodule "test/cqf"]
 	path = test/cqf
 	url = https://github.com/splatlab/cqf
+[submodule "test/wiredtiger"]
+	path = test/wiredtiger
+	url = https://github.com/wiredtiger/wiredtiger.git

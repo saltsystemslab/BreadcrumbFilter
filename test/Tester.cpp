@@ -1,102 +1,21 @@
 #include "Tester.hpp"
 #include "Config.hpp"
+#include "FilteredWiredTiger.hpp"
+#include "TesterTools.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <chrono>
 #include <set>
 #include <map>
-#include <cmath>
 #include <atomic>
 #include <thread>
 #include <filesystem>
 #include <limits>
 #include <sys/time.h>
 
-
 using namespace std;
 using namespace std::literals::string_view_literals;
-
-//returns microseconds
-double runTest(std::function<void(void)> t) {
-    std::chrono::time_point <std::chrono::system_clock> startTime, endTime;
-    startTime = std::chrono::system_clock::now();
-    asm volatile ("":: : "memory");
-
-    t();
-
-    asm volatile ("":: : "memory");
-    endTime = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed = endTime - startTime;
-    return duration_cast<std::chrono::microseconds>(elapsed).count();
-}
-
-std::vector <size_t> splitRange(size_t start, size_t end, size_t numSegs) {
-    if (numSegs == 0) { //bad code lol
-        if (start != end) {
-            std::cerr << "0 segs and start is not end!!" << std::endl;
-        }
-        return std::vector < size_t > {start};
-    }
-    std::vector <size_t> ans(numSegs + 1);
-    for (size_t i = 0; i <= numSegs; i++) {
-        ans[i] = start + (end - start) * i / numSegs;
-    }
-    return ans;
-}
-
-std::mt19937_64 createGenerator() {
-    return std::mt19937_64(std::random_device()());
-}
-
-template<typename FT>
-size_t generateKey(const FT &filter, std::mt19937_64 &generator) {
-    std::uniform_int_distribution dist(0ull, filter.range - 1ull);
-    return dist(generator);
-}
-
-template<typename FT>
-std::vector <size_t> generateKeys(const FT &filter, size_t N, size_t NumThreads = 32) {
-    if (NumThreads > 1) {
-        std::vector <size_t> keys(N);
-        std::vector <size_t> threadKeys = splitRange(0, N, NumThreads);
-        std::vector <std::thread> threads;
-        for (size_t i = 0; i < NumThreads; i++) {
-            threads.push_back(std::thread([&, i] {
-                auto generator = createGenerator();
-                for (size_t j = threadKeys[i]; j < threadKeys[i + 1]; j++) {
-                    keys[j] = generateKey<FT>(filter, generator);
-                }
-            }));
-        }
-        for (auto &th: threads) {
-            th.join();
-        }
-        return keys;
-    } else {
-        std::vector <size_t> keys;
-        auto generator = createGenerator();
-        for (size_t i = 0; i < N; i++) {
-            keys.push_back(generateKey<FT>(filter, generator));
-        }
-        return keys;
-    }
-}
-
-template<typename FT>
-bool insertItems(FT &filter, const std::vector <size_t> &keys, size_t start, size_t end, std::string name = "") {
-    for (size_t i{start}; i < end; i++) {
-        // if (name == "CQF") {
-        //     std::cout << keys[i] << " " << i << std::endl;
-        // }
-        if (!filter.insert(keys[i])) {
-            std::cerr << "Tried to insert key " << keys[i] << std::endl;
-            return false;
-        }
-        //std::cerr << "Inserted key " << keys[i];
-    }
-    return true;
-}
 
 template<typename FT>
 bool
@@ -242,163 +161,6 @@ randomInsertDeleteTest(FT &filter, std::vector <size_t> &keysInFilter, std::mt19
     }
     return maxKeyCount;
 }
-
-
-struct Settings {
-    //need a somewhat better way to do settings, since now the setting for every type of thing (filter type, test type, the general test handler) are all in the same struct. Not sure exactly what a better (and still simple) design would be
-    static auto SettingTypes() {
-        return std::set < std::string >
-               {"NumKeys", "NumTrials", "NumThreads", "NumReplicants", "LoadFactorTicks", "MaxLoadFactor",
-                "MinLoadFactor", "MaxInsertDeleteRatio"};
-    }
-
-    std::string TestName;
-    std::string FTName;
-    size_t N;
-    size_t numReplicants = 1;
-    size_t numThreads{1};
-    size_t loadFactorTicks = 1;
-    std::optional<double> maxLoadFactor; //optional since its a necessary value to set and has no reasonable default
-    double minLoadFactor = 0.0;
-    double maxInsertDeleteRatio = 10.0;
-    size_t nops_mixed = 0;
-
-    auto getTuple() const {
-        return std::tie(TestName, FTName, N, numReplicants, numThreads, loadFactorTicks, maxLoadFactor, minLoadFactor,
-                        maxInsertDeleteRatio);
-    }
-
-    bool operator==(const Settings &rhs) const {
-        return getTuple() == rhs.getTuple();
-    }
-
-    bool operator<(const Settings &rhs) const {
-        return getTuple() < rhs.getTuple();
-    }
-
-    //doesn't set testname or ftname here that is done externally. Yeah not great system whatever
-    void setval(std::string type, std::vector<double> values) {
-        if (SettingTypes().count(type) == 0) {
-            std::cerr << "Set an incorrect setting: " << type << std::endl;
-            exit(-1);
-        }
-        if (values.size() != 1) {
-            std::cerr << "Can only set one value!" << std::endl;
-            exit(-1);
-        }
-
-        if (type == "NumKeys"s) {
-            N = static_cast<size_t>(values[0]);
-        } else if (type == "NumThreads"s) {
-            numThreads = static_cast<size_t>(values[0]);
-        } else if (type == "NumReplicants"s) {
-            numReplicants = static_cast<size_t>(values[0]);
-        } else if (type == "LoadFactorTicks"s) {
-            loadFactorTicks = static_cast<size_t>(values[0]);
-        } else if (type == "MaxLoadFactor") {
-            maxLoadFactor = values[0];
-        } else if (type == "MinLoadFactor") {
-            minLoadFactor = values[0];
-        } else if (type == "MaxInsertDeleteRatio") {
-            maxInsertDeleteRatio = values[0];
-        }
-    }
-};
-
-std::ostream &operator<<(std::ostream &os, const Settings &s) {
-    os << "# Settings for a particular run:" << "\n";
-    os << s.TestName << "\n";
-    os << "NumKeys " << s.N << "\n";
-    os << "NumThreads " << s.numThreads << "\n";
-    os << "NumReplicants " << s.numReplicants << "\n";
-    os << "LoadFactorTicks " << s.loadFactorTicks << "\n";
-    if (s.maxLoadFactor)
-        os << "MaxLoadFactor " << (*(s.maxLoadFactor)) << "\n";
-    os << "MinLoadFactor " << s.minLoadFactor << "\n";
-    os << "MaxInsertDeleteRatio " << s.maxInsertDeleteRatio << "\n";
-    os << s.FTName << "\n";
-    return os;
-}
-
-template<typename T, typename LambdaT>
-auto transform_vector(std::vector <T> &v, LambdaT lambda) {
-    using TElemType =
-    decltype(std::declval<LambdaT>()(std::declval<T>()));
-    // std::vector<typename FunctionSignature<LambdaT>::RetT> retv;
-    std::vector <TElemType> retv;
-    for (T &t: v) {
-        retv.push_back(lambda(t));
-    }
-    return retv;
-}
-
-size_t roundDoublePos(double d) {
-    long long l = std::llround(d);
-    if (l < 0) {
-        std::cerr << "Trying to round a double to positive number, but it was negative (probably settings issue)"
-                  << std::endl;
-        exit(-1);
-    }
-    return static_cast<size_t>(l);
-}
-
-struct CompressedSettings {
-    std::string TestName;
-    std::string FTName;
-    std::vector <size_t> Ns;
-    std::optional <size_t> numTrials;
-    size_t numReplicants = 1;
-    std::vector <size_t> numThreads{1};
-    size_t loadFactorTicks;
-    std::optional<double> maxLoadFactor;
-    double minLoadFactor = 0.0;
-    double maxInsertDeleteRatio = 10.0;
-
-    std::vector <Settings> getSettingsCombos() {
-        std::vector <Settings> output;
-        for (size_t N: Ns) {
-            for (size_t NT: numThreads) {
-                assert(numTrials.has_value());
-                for (size_t i = 0; i < (*numTrials); i++) {
-                    output.push_back(Settings{TestName, FTName, N, numReplicants, NT, loadFactorTicks, maxLoadFactor,
-                                              minLoadFactor, maxInsertDeleteRatio});
-                }
-            }
-        }
-        return output;
-    }
-
-    void setval(std::string type, std::vector<double> values) {
-        if (Settings::SettingTypes().count(type) == 0) {
-            std::cerr << "Set an incorrect setting: " << type << std::endl;
-            exit(-1);
-        }
-
-        if (type == "NumKeys"s) {
-            Ns = transform_vector(values, &roundDoublePos);
-        } else if (type == "NumThreads"s) {
-            numThreads = transform_vector(values, &roundDoublePos);
-        } else {
-            if (values.size() != 1) {
-                std::cerr << "Can only set one value for " << type << std::endl;
-                exit(-1);
-            }
-            if (type == "NumTrials") {
-                numTrials = static_cast<size_t>(values[0]);
-            } else if (type == "NumReplicants"s) {
-                numReplicants = static_cast<size_t>(values[0]);
-            } else if (type == "LoadFactorTicks"s) {
-                loadFactorTicks = static_cast<size_t>(values[0]);
-            } else if (type == "MaxLoadFactor") {
-                maxLoadFactor = values[0];
-            } else if (type == "MinLoadFactor") {
-                minLoadFactor = values[0];
-            } else if (type == "MaxInsertDeleteRatio") {
-                maxInsertDeleteRatio = values[0];
-            }
-        }
-    }
-};
 
 
 struct MergeWrapper {

@@ -52,9 +52,14 @@ set(MORTON_FILES
     test/morton_filter/morton_sample_configs.h
     )
 
+set(WIRED_TIGER_FILES
+    test/wiredtiger/build/include/wiredtiger.h
+    )
+
 add_library(vqf OBJECT IMPORTED)
 add_library(PQF ${DPF_FILES})
 add_library(cqf OBJECT IMPORTED)
+add_library(wiredtiger OBJECT IMPORTED)
 target_include_directories(PQF PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 if(USE_AVX512)
@@ -75,10 +80,14 @@ set_property(TARGET cqf PROPERTY IMPORTED_OBJECTS
   ${PROJECT_SOURCE_DIR}/test/cqf/obj/partitioned_counter.o
 )
 
+set_property(TARGET wiredtiger PROPERTY IMPORTED_OBJECTS
+  ${PROJECT_SOURCE_DIR}/test/wiredtiger/build/libwiredtiger.so.11.3.1
+)
+
 if(USE_AVX512)
-    add_executable(Tester ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} ${CUCKOO_FILES} ${MORTON_FILES} test/Tester.cpp test/Tester.hpp test/Config.hpp test/Config.cpp test/TestWrappers.hpp)
+    add_executable(Tester ${WIRED_TIGER_FILES} ${DPF_FILES} ${PF_FILES} ${TC_FILES} ${PF_TESTS_FILES} ${TC_SHORTCUT_FILES} ${CUCKOO_FILES} ${MORTON_FILES} test/Tester.cpp test/Config.cpp test/FilteredWiredTiger.cpp test/TesterTools.cpp)
 else()
-    add_executable(Tester ${DPF_FILES} ${TC_FILES} ${TC_SHORTCUT_FILES} ${CUCKOO_FILES} ${MORTON_FILES} test/Tester.cpp test/Tester.hpp test/Config.hpp test/Config.cpp test/TestWrappers.hpp)
+    add_executable(Tester ${WIRED_TIGER_FILES} ${DPF_FILES} ${TC_FILES} ${TC_SHORTCUT_FILES} ${CUCKOO_FILES} ${MORTON_FILES} test/Tester.cpp test/Config.cpp test/FilteredWiredTiger.cpp test/TesterTools.cpp)
 endif()
 target_include_directories(Tester PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
@@ -98,7 +107,7 @@ target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
 target_link_libraries(Tester PRIVATE vqf)
 target_link_libraries(Tester PRIVATE cqf)
 if(USE_AVX512)
-    target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/cqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
+    target_include_directories(Tester PUBLIC "test" "include" "test/wiredtiger/build/include" "test/vqf/include" "test/cqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
 else()
-    target_include_directories(Tester PUBLIC "test" "include" "test/vqf/include" "test/cqf/include" "test/cuckoofilter/src" "test/morton_filter")
+    target_include_directories(Tester PUBLIC "test" "include" "test/wiredtiger/build/include" "test/vqf/include" "test/cqf/include" "test/cuckoofilter/src" "test/morton_filter")
 endif()
