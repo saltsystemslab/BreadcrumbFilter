@@ -1,8 +1,11 @@
 #pragma once
 #include "wiredtiger.h"
+#include "TesterTools.hpp"
+#include "Config.hpp"
 #include <vector>
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 
 //-----------------------------------------------------------------------------
 // MurmurHash2, 64-bit versions, by Austin Appleby
@@ -13,48 +16,7 @@
 
 // 64-bit hash for 64-bit platforms
 
-uint64_t MurmurHash64A ( const void * key, int len, unsigned int seed )
-{
-	const uint64_t m = 0xc6a4a7935bd1e995;
-	const int r = 47;
-
-	uint64_t h = seed ^ (len * m);
-
-	const uint64_t * data = (const uint64_t *)key;
-	const uint64_t * end = data + (len/8);
-
-	while(data != end)
-	{
-		uint64_t k = *data++;
-
-		k *= m; 
-		k ^= k >> r; 
-		k *= m; 
-
-		h ^= k;
-		h *= m; 
-	}
-
-	const unsigned char * data2 = (const unsigned char*)data;
-
-	switch(len & 7)
-	{
-		case 7: h ^= (uint64_t)data2[6] << 48;
-		case 6: h ^= (uint64_t)data2[5] << 40;
-		case 5: h ^= (uint64_t)data2[4] << 32;
-		case 4: h ^= (uint64_t)data2[3] << 24;
-		case 3: h ^= (uint64_t)data2[2] << 16;
-		case 2: h ^= (uint64_t)data2[1] << 8;
-		case 1: h ^= (uint64_t)data2[0];
-						h *= m;
-	};
-
-	h ^= h >> r;
-	h *= m;
-	h ^= h >> r;
-
-	return h;
-}
+uint64_t MurmurHash64A ( const void * key, int len, unsigned int seed );
 
 
 
@@ -82,169 +44,294 @@ static inline void insert_kv(WT_CURSOR *cursor, char *key, char *value)
 static const char *wt_home = "./wt_database_home";
 static const uint32_t max_schema_len = 128;
 static const uint32_t max_conn_config_len = 128;
-static const size_t default_key_len = 8, default_val_len = 504;
-static const std::string default_buffer_pool_size = "1024MB";
+static const size_t default_key_len = 16, default_val_len = 496;
+static const size_t default_insert_buffer_pool_size_mb = 4096;
+static const size_t default_query_buffer_pool_size_mb = 128;
 static const bool default_in_memory = false;
 
-// class FilteredWiredTiger {
-//     size_t fp = 0;
-//     size_t seed = 0;
-//     size_t key_len = default_key_len;
-//     size_t val_len = default_val_len;
+struct FilteredWiredTiger {
+    size_t fp = 0;
+    size_t seed = 0;
+    size_t key_len = default_key_len;
+    size_t val_len = default_val_len;
+    size_t insert_buffer_pool_size_mb;
+    size_t query_buffer_pool_size_mb;
+    char table_schema[max_schema_len];
+    char connection_config[max_conn_config_len];
+    bool in_memory = default_in_memory;
+    bool initialized = false;
 
-//     WT_CONNECTION *conn;
-//     WT_SESSION *session;
-//     WT_CURSOR *cursor;
+    std::vector<uint8_t> kvs;
+    std::vector<uint8_t> random_kvs;
+
+    WT_CONNECTION *conn;
+    WT_SESSION *session;
+    WT_CURSOR *cursor;
     
-//     FilteredWiredTiger(size_t cap_filter, size_t num_filters, size_t seed, size_t keylen = default_key_len, size_t vallen = default_val_len, std::string buffer_pool_size = default_buffer_pool_size, bool in_memory = default_in_memory):
-//     seed{seed}, key_len{key_len}, val_len{val_len} {
-//         char table_schema[max_schema_len];
-//         char connection_config[max_conn_config_len];
+    FilteredWiredTiger(size_t key_len = default_key_len, size_t val_len = default_val_len, size_t insert_buffer_pool_size_mb = default_insert_buffer_pool_size_mb, size_t query_buffer_pool_size_mb = default_query_buffer_pool_size_mb, bool in_memory = default_in_memory, size_t seed = 42):
+    seed{seed}, key_len{key_len}, val_len{val_len},
+    insert_buffer_pool_size_mb{insert_buffer_pool_size_mb},
+    query_buffer_pool_size_mb{query_buffer_pool_size_mb},
+    in_memory{in_memory} {
+    }
 
-//         if (std::filesystem::exists(wt_home))
-//             std::filesystem::remove_all(wt_home);
-//         std::filesystem::create_directory(wt_home);
+    void insert(char *key, char *value) {
+        // if (!filters[0].insert(MurmurHash64A(key, key_len, seed) % filters[0].range)) {
+        //     std::cerr << "Failed to insert into filter" << std::endl;
+        //     exit(-1);
+        // }
+        insert_kv(cursor, key, value);
+    }
 
-//         sprintf(table_schema, "key_format=%lds,value_format=%lds", key_len, val_len);
-//         uint64_t current_buffer_pool_size = buffer_pool_size;
-//         sprintf(connection_config, "create,statistics=(all),direct_io=[data],cache_size=%ldMB,in_memory=", buffer_pool_size, in_memory ? "true" : "false");
-//         error_check(wiredtiger_open(wt_home, NULL, connection_config, &conn));
-//         error_check(conn->open_session(conn, NULL, NULL, &session));
-//         error_check(session->create(session, "table:access", table_schema));
-//         error_check(session->open_cursor(session, "table:access", NULL, NULL, &cursor));
-//         std::cout << "[+] WiredTiger initialized" << std::endl;
+    void insert_kvs(char* kvs, size_t num) {
+        for(size_t i = 0; i < num; i++, kvs+=(key_len+val_len)) {
+            insert(kvs, kvs + key_len);
+        }
+    }
 
-//         for (size_t i=0; i < num_filters; i++) {
-//             filters.emplace_back(cap_filter);
-//         }
-//     }
+    size_t num_inserted() {
+        return kvs.size() / (key_len + val_len);
+    }
 
+    void reset_and_insert(size_t num, size_t random_num) {
+        sprintf(table_schema, "key_format=%lds,value_format=%lds", key_len, val_len);
+        if (std::filesystem::exists(wt_home))
+            std::filesystem::remove_all(wt_home);
+        std::filesystem::create_directory(wt_home);
 
-//     void insert(char *key, char *value) {
-//         if (!filters[0].insert(MurmurHash64A(key, key_len, seed) % filters[0].range)) {
-//             std::cerr << "Failed to insert into filter" << std::endl;
-//             exit(-1);
-//         }
-//         insert_kv(cursor, key, value);
-//     }
+        sprintf(connection_config, "create,statistics=(all),direct_io=[data],cache_size=%ldMB,in_memory=%s", insert_buffer_pool_size_mb, in_memory ? "true" : "false");
+        error_check(wiredtiger_open(wt_home, NULL, connection_config, &conn));
+        error_check(conn->open_session(conn, NULL, NULL, &session));
+        error_check(session->create(session, "table:access", table_schema));
+        error_check(session->open_cursor(session, "table:access", NULL, NULL, &cursor));
+        std::cout << "[+] WiredTiger initialized" << std::endl;
 
-//     template<typename FT>
-//     bool query_key(FT& f, char *key) {
-//         if(!filters[0].query(MurmurHash64A(key, key_len, seed) % filters[0].range)) {
-//             return false;
-//         }
+        error_check(cursor->reset(cursor));
+
+        size_t kvsize = key_len + val_len;
+        kvs = genBytes(num * kvsize);
+        // just gonna have random_kvs be same size as kvs.
+        random_kvs = genBytes(random_num * kvsize);
+        insert_kvs((char*)kvs.data(), num);
+        std::cout << "[+] Keys inserted into wiredtiger" << std::endl;
+
+        // error_check(conn->close(conn, NULL));
+        error_check(cursor->reset(cursor));
+        initialized = true;
+    }
+
+    template<typename FT>
+    void insert_into_filter(FT& f) {
+        for(size_t i = 0, j=0; i < kvs.size(); i+=(key_len+val_len), j++) {
+            size_t hash = MurmurHash64A((char*)&kvs[i], key_len, seed) % f.range;
+            // size_t hash = (*((size_t*)&kvs[i])) % f.range;
+            // if (i % 1001 == 0)
+            //     std::cout << hash << std::endl;
+            if(!f.insert(hash)) {
+                std::cerr << i << " " << j << " " << f.range << " filter full!" << std::endl;
+                exit(-1);
+            }
+        }
+    }
+
+    template<typename FT>
+    void initialize_to_filter(FT& f) {
+        size_t filter_size_mb = f.sizeFilter() / 1'000'000;
+        size_t db_size_mb = query_buffer_pool_size_mb - filter_size_mb;
+        // sprintf(connection_config, "statistics=(all),direct_io=[data],cache_size=%ldMB,in_memory=%s", db_size_mb, in_memory ? "true" : "false");
+        sprintf(connection_config, "cache_size=%ldMB", db_size_mb);
+        error_check(conn->reconfigure(conn, connection_config));
+        // error_check(wiredtiger_open(wt_home, NULL, connection_config, &conn));
+        // error_check(conn->open_session(conn, NULL, NULL, &session));
+        // error_check(session->create(session, "table:access", table_schema));
+        // error_check(session->open_cursor(session, "table:access", NULL, NULL, &cursor));
+    }
+
+    void reset() {
+        // error_check(conn->close(conn, NULL));
+    }
+
+    template<typename FT>
+    bool query_filter(FT& f, char* key) {
+        size_t hash = MurmurHash64A(key, key_len, seed) % f.range;
+        return f.query(hash);
+    }
+
+    bool query_db(char* key) {
+        cursor->set_key(cursor, key);
+        int exists_err = cursor->search(cursor);
+        error_check(cursor->reset(cursor));
+        if (exists_err == 0) {
+            return true;
+        }
+        else if (exists_err == WT_NOTFOUND) {
+            return false;
+        }
+        else {
+            error_check(exists_err);
+            return false;
+        }
+    }
+
+    template<typename FT>
+    bool query_key(FT& f, char *key) {
+        if(query_filter(f, key)) {
+            return query_db(key);
+        }
+        return false;
+    }
+
+    template<typename FT>
+    void check_no_false_negatives(FT& f) {
+        for(size_t i = 0; i < kvs.size(); i+=(key_len+val_len)) {
+            size_t hash = MurmurHash64A((char*)&kvs[i], key_len, seed) % f.range;
+            if(!f.query(hash)) {
+                std::cerr << "false negatives!" << std::endl;
+                exit(-1);
+            }
+        }
+    }
+
+    template<typename FT>
+    size_t query_bench(FT& f, size_t num, size_t invfrac_nonrandom) {
+        size_t kvsize = key_len + val_len;
+        size_t fpr = 0;
+        size_t super_fpr = 0;
+        for(size_t i=0, j=0, k=0; i < num; i++) {
+            if ((i % 100000) == 0) {
+                std::cout << i << std::endl;
+            }
+            if ((i % invfrac_nonrandom) == 0) {
+                if(!query_key(f, (char*)&kvs[j])) {
+                    std::cerr << "false negatives!" << std::endl;
+                    exit(-1);
+                }
+                j+=kvsize;
+                j%=kvs.size();
+            }
+            else {
+                if(query_filter(f, (char*)&random_kvs[k])) {
+                    fpr += 1;
+                    if (query_db((char*)&random_kvs[k])) {
+                        super_fpr += 1;
+                    }
+                }
+                k+=kvsize;
+                k%=random_kvs.size();
+            }
+        }
+        if (super_fpr) {
+            std::cout << "# Got really unlucky with db, wow." << std::endl;
+        }
+        return fpr;
+    }
+
+    ~FilteredWiredTiger() {
+        error_check(conn->close(conn, NULL));
+    }
+};
+
+static FilteredWiredTiger fwt{};
+
+struct WiredTigerBenchmark {
+    static constexpr std::string_view name = "WiredTiger";
+
+    template<typename FTWrapper>
+    static std::vector<double> run(Settings s) {
+        bool diff = !fwt.initialized;
+        size_t invfrac_nonrandom = 1;
+        if(s.other_settings.count("WiredTigerInsertCacheSize") > 0) {
+            diff |= fwt.insert_buffer_pool_size_mb != ((size_t)s.other_settings["WiredTigerInsertCacheSize"]);
+            std::cout << diff << std::endl;
+            fwt.insert_buffer_pool_size_mb = s.other_settings["WiredTigerInsertCacheSize"];
+        }
+        if(s.other_settings.count("WiredTigerQueryCacheSize") > 0) {
+            fwt.query_buffer_pool_size_mb = s.other_settings["WiredTigerQueryCacheSize"];
+        }
+        if(s.other_settings.count("WiredTigerInvFracNonrandom") > 0) {
+            invfrac_nonrandom = s.other_settings.count("WiredTigerInvFracNonrandom");
+        }
+        if(s.other_settings.count("WiredTigerKeySize") > 0) {
+            diff |= fwt.key_len != ((size_t)s.other_settings["WiredTigerKeySize"]);
+            std::cout << diff << std::endl;
+            fwt.key_len = s.other_settings["WiredTigerKeySize"];
+        }
+        if(s.other_settings.count("WiredTigerValSize") > 0) {
+            diff |= fwt.val_len != ((size_t)s.other_settings["WiredTigerValSize"]);
+            std::cout << diff << std::endl;
+            fwt.val_len = s.other_settings["WiredTigerValSize"];
+        }
+        if(s.other_settings.count("WiredTigerInMem") > 0) {
+            diff |= fwt.in_memory != ((bool)s.other_settings["WiredTigerInMem"]);
+            std::cout << diff << std::endl;
+            fwt.in_memory = s.other_settings["WiredTigerInMem"];
+        }
+        size_t numThreads = s.numThreads;
+        if (numThreads == 0) {
+            std::cerr << "Cannot have 0 threads!!" << std::endl;
+            return {};
+        }
+        else if (numThreads > 1){
+            std::cerr << "no multithreaded wiredtiger yet" << std::endl;
+            return {};
+        }
+        if (!FTWrapper::canDelete) {
+            std::cerr << "Need deletions!" << std::endl;
+            return {};
+        }
+        if (!s.maxLoadFactor) {
+            std::cerr << "Does not have a max load factor!" << std::endl;
+            return std::vector < double > {};
+        }
+        using FT = typename FTWrapper::type;
+        // size_t filterSlots = static_cast<size_t>(s.N);
+        // FT f(filterSlots);
+        // size_t N = static_cast<size_t>(s.N * (*(s.maxLoadFactor)));
+        if (diff || (s.N != fwt.num_inserted())) {
+            std::cout << "resetting" << std::endl;
+            fwt.reset_and_insert(s.N, s.N);
+        }
+        double maxLoadFactor = *(s.maxLoadFactor);
+        // std::cout << "nn " << s.N << " " << filterSlots << std::endl;
+        size_t filterSlots = static_cast<size_t>(s.N / maxLoadFactor);
+        FT f(filterSlots);
+        std::cout << "nn " << s.N << " " << filterSlots << std::endl;
         
-//         cursor->set_key(cursor, key);
-//         int exists_err = cursor->search(cursor);
-//         error_check(cursor->reset(cursor));
-//         if (exists_err == 0) {
-//             return true;
-//         }
-//         else if (exists_err == WT_NOTFOUND) {
-//             return false;
-//         }
-//         else {
-//             error_check(exists_err);
-//         }
-//     }
+        double filterInsertTime = runTest([&]() {
+            fwt.insert_into_filter(f);
+        });
+        fwt.check_no_false_negatives(f);
 
-//     ~FilteredWiredTiger() {
-//         error_check(conn->close(conn, NULL));
-//     }
-// };
+        fwt.initialize_to_filter(f);
 
-// struct WiredTigerWrapper {
-//     static constexpr std::string_view
-//     name = "WiredTiger";
+        size_t fpr;
+        double queryTime = runTest([&]() {
+            fpr = fwt.query_bench(f, s.N, invfrac_nonrandom);
+        });
+        fwt.reset();
 
-//     template<typename FTWrapper>
-//     static std::vector<double> run(Settings s) {
-//         size_t numThreads = s.numThreads;
-//         if (numThreads == 0) {
-//             std::cerr << "Cannot have 0 threads!!" << std::endl;
-//             return {};
-//         }
-//         else if (numThreads > 1){
-//             std::cerr << "no multithreaded merging yet" << std::endl;
-//             return {};
-//         }
-//         if (!FTWrapper::canDelete) {
-//             std::cerr << "Need deletions!" << std::endl;
-//             return {};
-//         }
-//         if (!s.maxLoadFactor) {
-//             std::cerr << "Does not have a max load factor!" << std::endl;
-//             return std::vector < double > {};
-//         }
-//         double maxLoadFactor = *(s.maxLoadFactor);
+        return std::vector < double > {filterInsertTime, queryTime, (double)fpr, (double)invfrac_nonrandom};
+    }
 
-//         // using FT = typename FTWrapper::type;
-//         size_t filterSlots = s.N;
-//         size_t N = static_cast<size_t>(s.N * maxLoadFactor);
-//         // FT a(filterSlots);
-//         // FT b(filterSlots);
+    template<typename FTWrapper>
+    static void analyze(Settings s, std::filesystem::path outputFolder, std::vector <std::vector<double>> outputs) {
+        double avgFilterInsertTime = 0;
+        double avgQueryTime = 0;
+        double fpr = 0;
+        size_t invfrac_nonrandom = (size_t) outputs[0][3];
+        for (auto v: outputs) {
+            avgFilterInsertTime += v[0] / outputs.size();
+            avgQueryTime += v[1] / outputs.size();
+            fpr += v[2] / outputs.size();
+            if (((size_t) v[3]) != invfrac_nonrandom) {
+                std::cerr << "not all with same invfrac" << std::endl;
+                exit(-1);
+            }
+        }
 
-//         std::vector <size_t> keys = generateKeys<FT>(a, 2 * N);
-//         insertItems<FT>(a, keys, 0, N, std::string(FTWrapper::name));
-//         if (!checkQuery(a, keys, 0, N)) {
-//             std::cerr << "Failed to insert into a" << std::endl;
-//             return std::vector < double > {std::numeric_limits<double>::max()};
-//         }
-//         insertItems<FT>(b, keys, N, 2 * N, std::string(FTWrapper::name));
-//         if (!checkQuery(b, keys, N, 2 * N)) {
-//             std::cerr << "Failed to insert into b" << std::endl;
-//             return std::vector < double > {std::numeric_limits<double>::max()};
-//         }
-//         auto generator = createGenerator();
-
-//         bool success = true;
-
-//         FT *c;
-
-//         double mergeTime = runTest([&]() {
-//             // FT c(a, b);
-//             c = new FT(a,b);
-//             // if(!checkQuery(c, keys, 0, 2*N)) {
-//             //     std::cerr << "Merge failed" << endl;
-//             //     success = false;
-//             //     exit(-1);
-//             // }
-//             if(!checkQuery(*c, keys, N-2, N+2)) {
-//                 std::cerr << "Merge failed" << endl;
-//                 success = false;
-//                 exit(-1);
-//             }
-//         });
-
-//         if (!checkFunctional(*c, keys, generator)) {
-//             std::cerr << "Merge failed" << endl;
-//             success = false;
-//             exit(-1);
-//         }
-//         delete c;
-
-//         if (!success) {
-//             return std::vector < double > {std::numeric_limits<double>::max()};
-//         }
-
-//         return std::vector < double > {mergeTime};
-//     }
-
-//     template<typename FTWrapper>
-//     static void analyze(Settings s, std::filesystem::path outputFolder, std::vector <std::vector<double>> outputs) {
-//         double avgInsTime = 0;
-//         for (auto v: outputs) {
-//             avgInsTime += v[0] / outputs.size();
-//         }
-
-//         if (!s.maxLoadFactor) {
-//             std::cerr << "Missing max load factor" << std::endl;
-//             return;
-//         }
-//         double maxLoadFactor = *(s.maxLoadFactor);
-
-//         double effectiveN = s.N * s.maxLoadFactor.value();
-//         std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
-//         fout << maxLoadFactor << " " << avgInsTime << " " << (effectiveN / avgInsTime) << std::endl;
-//     }
-// };
+        std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
+        // fout << s << std::endl;
+        fout << s.other_settings["WiredTigerInsertCacheSize"] << " " << s.other_settings["WiredTigerQueryCacheSize"] << " " << s.other_settings["WiredTigerKeySize"] << " " << s.other_settings["WiredTigerValSize"] << " " << s.other_settings["WiredTigerInMem"] << " " << s.other_settings["WiredTigerInvFracNonrandom"] << std::endl;
+        fout << avgFilterInsertTime << " " << (s.N / avgFilterInsertTime) << " " << (s.N / avgQueryTime) << " " << (fpr / s.N) << std::endl;
+    }
+};

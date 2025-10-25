@@ -7,9 +7,22 @@
 #include <random>
 #include <thread>
 #include <iostream>
+#include <cstdint>
+#include <cstring>
 
 //returns microseconds
-double runTest(std::function<void(void)> t);
+static inline double runTest(std::function<void(void)> t) {
+    std::chrono::time_point <std::chrono::system_clock> startTime, endTime;
+    startTime = std::chrono::system_clock::now();
+    asm volatile ("":: : "memory");
+
+    t();
+
+    asm volatile ("":: : "memory");
+    endTime = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed = endTime - startTime;
+    return duration_cast<std::chrono::microseconds>(elapsed).count();
+}
 
 std::vector <size_t> splitRange(size_t start, size_t end, size_t numSegs);
 
@@ -20,6 +33,10 @@ size_t generateKey(const FT &filter, std::mt19937_64 &generator) {
     std::uniform_int_distribution dist(0ull, filter.range - 1ull);
     return dist(generator);
 }
+
+struct FakeFilter {
+    size_t range = -1ull;
+};
 
 template<typename FT>
 std::vector <size_t> generateKeys(const FT &filter, size_t N, size_t NumThreads = 32) {
@@ -48,6 +65,9 @@ std::vector <size_t> generateKeys(const FT &filter, size_t N, size_t NumThreads 
         return keys;
     }
 }
+
+//Being super lazy because I don't want to do more refactoring/rewrite this
+std::vector<uint8_t> genBytes(size_t N, size_t NumThreads = 32);
 
 template<typename FT>
 bool insertItems(FT &filter, const std::vector <size_t> &keys, size_t start, size_t end, std::string name = "") {

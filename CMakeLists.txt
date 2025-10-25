@@ -81,7 +81,7 @@ set_property(TARGET cqf PROPERTY IMPORTED_OBJECTS
 )
 
 set_property(TARGET wiredtiger PROPERTY IMPORTED_OBJECTS
-  ${PROJECT_SOURCE_DIR}/test/wiredtiger/build/libwiredtiger.so.11.3.1
+  ${PROJECT_SOURCE_DIR}/test/wiredtiger/build/libwiredtiger.a
 )
 
 if(USE_AVX512)
@@ -106,6 +106,7 @@ endif()
 target_compile_options(Tester PRIVATE -O3 -DNDEBUG -Wall)
 target_link_libraries(Tester PRIVATE vqf)
 target_link_libraries(Tester PRIVATE cqf)
+target_link_libraries(Tester PRIVATE wiredtiger)
 if(USE_AVX512)
     target_include_directories(Tester PUBLIC "test" "include" "test/wiredtiger/build/include" "test/vqf/include" "test/cqf/include" "test/Prefix-Filter/Tests" "test/Prefix-Filter/Prefix-Filter" "test/Prefix-Filter" "test/Prefix-Filter/TC-Shortcut" "test/cuckoofilter/src" "test/morton_filter", "test/Prefix-Filter/Bloom_Filter")
 else()

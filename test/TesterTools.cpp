@@ -1,18 +1,5 @@
 #include "TesterTools.hpp"
 
-double runTest(std::function<void(void)> t) {
-    std::chrono::time_point <std::chrono::system_clock> startTime, endTime;
-    startTime = std::chrono::system_clock::now();
-    asm volatile ("":: : "memory");
-
-    t();
-
-    asm volatile ("":: : "memory");
-    endTime = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed = endTime - startTime;
-    return duration_cast<std::chrono::microseconds>(elapsed).count();
-}
-
 std::vector <size_t> splitRange(size_t start, size_t end, size_t numSegs) {
     if (numSegs == 0) { //bad code lol
         if (start != end) {
@@ -29,4 +16,11 @@ std::vector <size_t> splitRange(size_t start, size_t end, size_t numSegs) {
 
 std::mt19937_64 createGenerator() {
     return std::mt19937_64(std::random_device()());
+}
+
+std::vector<uint8_t> genBytes(size_t N, size_t NumThreads) {
+    std::vector<uint64_t> llongs = generateKeys(FakeFilter{}, (N + 7) / 8, NumThreads);
+    std::vector<uint8_t> bytes(llongs.size() * sizeof(uint64_t));
+    std::memcpy(bytes.data(), llongs.data(), bytes.size());
+    return bytes;
 }

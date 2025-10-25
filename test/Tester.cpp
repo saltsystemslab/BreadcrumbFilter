@@ -399,7 +399,7 @@ struct BenchmarkWrapper {
         size_t N = static_cast<size_t>(s.N * maxLoadFactor);
         // std::cout << filterSlots << ", N: " << N << " " << maxLoadFactor << std::endl;
         FT filter(filterSlots);
-        size_t bits = static_cast<size_t>(-1.0 * filterSlots * std::log(0.0044) / std::pow(std::log(2), 2));
+        // size_t bits = static_cast<size_t>(-1.0 * filterSlots * std::log(0.0044) / std::pow(std::log(2), 2));
 
         std::vector <size_t> tickRanges = splitRange(0, N, numTicks);
         std::vector <size_t> keys = generateKeys<FT>(filter, N);
@@ -1192,7 +1192,8 @@ using TestWrapperTuple = std::tuple<BenchmarkWrapper,
         InsertDeleteWrapper,
         LoadFactorWrapper,
         MixedWorkloadBenchmarkWrapper,
-        MixedWorkloadMultithreadedBenchmarkWrapper>;
+        MixedWorkloadMultithreadedBenchmarkWrapper,
+        WiredTigerBenchmark>;
 
 using PQFTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wrapper, PQF_8_22BB_FRQ_Wrapper,
         PQF_8_31_Wrapper, PQF_8_31_FRQ_Wrapper, PQF_8_62_Wrapper, PQF_8_62_FRQ_Wrapper,

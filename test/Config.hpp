@@ -21,7 +21,8 @@ struct Settings {
     static auto SettingTypes() {
         return std::set < std::string >
                {"NumKeys", "NumTrials", "NumThreads", "NumReplicants", "LoadFactorTicks", "MaxLoadFactor",
-                "MinLoadFactor", "MaxInsertDeleteRatio", "WiredTigerCacheSize"};
+                "MinLoadFactor", "MaxInsertDeleteRatio", 
+                "WiredTigerInsertCacheSize", "WiredTigerQueryCacheSize", "WiredTigerKeySize", "WiredTigerValSize", "WiredTigerInMem", "WiredTigerInvFracNonrandom"};
     }
 
     std::string TestName;
