@@ -85,6 +85,9 @@ struct FilteredWiredTiger {
 
     void insert_kvs(char* kvs, size_t num) {
         for(size_t i = 0; i < num; i++, kvs+=(key_len+val_len)) {
+            if ((i % 1000000) == 0) {
+                std::cout << i << std::endl;
+            }
             insert(kvs, kvs + key_len);
         }
     }
@@ -120,11 +123,20 @@ struct FilteredWiredTiger {
         initialized = true;
     }
 
+    size_t hash_key(char* key, size_t range, bool useHashFunc) {
+        if(useHashFunc) {
+            return MurmurHash64A(key, key_len, seed) % range;
+        }
+        else {
+            assert(key_len == 8);
+            return (*((size_t*)key)) % range;
+        }
+    }
+
     template<typename FT>
-    void insert_into_filter(FT& f) {
+    void insert_into_filter(FT& f, bool useHashFunc) {
         for(size_t i = 0, j=0; i < kvs.size(); i+=(key_len+val_len), j++) {
-            size_t hash = MurmurHash64A((char*)&kvs[i], key_len, seed) % f.range;
-            // size_t hash = (*((size_t*)&kvs[i])) % f.range;
+            size_t hash = hash_key((char*)&kvs[i], f.range, useHashFunc);
             // if (i % 1001 == 0)
             //     std::cout << hash << std::endl;
             if(!f.insert(hash)) {
@@ -140,6 +152,7 @@ struct FilteredWiredTiger {
         size_t db_size_mb = query_buffer_pool_size_mb - filter_size_mb;
         // sprintf(connection_config, "statistics=(all),direct_io=[data],cache_size=%ldMB,in_memory=%s", db_size_mb, in_memory ? "true" : "false");
         sprintf(connection_config, "cache_size=%ldMB", db_size_mb);
+        std::cout << connection_config << std::endl;
         error_check(conn->reconfigure(conn, connection_config));
         // error_check(wiredtiger_open(wt_home, NULL, connection_config, &conn));
         // error_check(conn->open_session(conn, NULL, NULL, &session));
@@ -152,8 +165,8 @@ struct FilteredWiredTiger {
     }
 
     template<typename FT>
-    bool query_filter(FT& f, char* key) {
-        size_t hash = MurmurHash64A(key, key_len, seed) % f.range;
+    bool query_filter(FT& f, char* key, bool useHashFunc) {
+        size_t hash = hash_key(key, f.range, useHashFunc);
         return f.query(hash);
     }
 
@@ -174,17 +187,18 @@ struct FilteredWiredTiger {
     }
 
     template<typename FT>
-    bool query_key(FT& f, char *key) {
-        if(query_filter(f, key)) {
+    bool query_key(FT& f, char *key, bool useHashFunc) {
+        if(query_filter(f, key, useHashFunc)) {
             return query_db(key);
         }
         return false;
     }
 
     template<typename FT>
-    void check_no_false_negatives(FT& f) {
+    void check_no_false_negatives(FT& f, bool useHashFunc) {
         for(size_t i = 0; i < kvs.size(); i+=(key_len+val_len)) {
-            size_t hash = MurmurHash64A((char*)&kvs[i], key_len, seed) % f.range;
+            // size_t hash = MurmurHash64A((char*)&kvs[i], key_len, seed) % f.range;
+            size_t hash = hash_key((char*)&kvs[i], f.range, useHashFunc);
             if(!f.query(hash)) {
                 std::cerr << "false negatives!" << std::endl;
                 exit(-1);
@@ -193,16 +207,19 @@ struct FilteredWiredTiger {
     }
 
     template<typename FT>
-    size_t query_bench(FT& f, size_t num, size_t invfrac_nonrandom) {
+    size_t query_bench(FT& f, size_t num, size_t invfrac_nonrandom, bool useHashFunc) {
         size_t kvsize = key_len + val_len;
         size_t fpr = 0;
         size_t super_fpr = 0;
         for(size_t i=0, j=0, k=0; i < num; i++) {
-            if ((i % 100000) == 0) {
+            if ((i % 1000000) == 0) {
                 std::cout << i << std::endl;
             }
-            if ((i % invfrac_nonrandom) == 0) {
-                if(!query_key(f, (char*)&kvs[j])) {
+            // std::cout << "HEHEHEHEHEH" << std::endl;
+            if (((invfrac_nonrandom == 0) || ((i % invfrac_nonrandom) == 0)) && (invfrac_nonrandom < 1'000'000)) {
+                // std::cout << "DAFAFAFAFFAF " << " " << invfrac_nonrandom << " " <<  std::endl;
+                // exit(-1);
+                if(!query_key(f, (char*)&kvs[j], useHashFunc)) {
                     std::cerr << "false negatives!" << std::endl;
                     exit(-1);
                 }
@@ -210,7 +227,9 @@ struct FilteredWiredTiger {
                 j%=kvs.size();
             }
             else {
-                if(query_filter(f, (char*)&random_kvs[k])) {
+                // std::cout << "GOOLLLLAAAAAA" << std::endl;
+                if(query_filter(f, (char*)&random_kvs[k], useHashFunc)) {
+                    // std::cout << "HOOOOOLLLLLLA" << std::endl;
                     fpr += 1;
                     if (query_db((char*)&random_kvs[k])) {
                         super_fpr += 1;
@@ -227,7 +246,8 @@ struct FilteredWiredTiger {
     }
 
     ~FilteredWiredTiger() {
-        error_check(conn->close(conn, NULL));
+        if(conn != NULL)
+            error_check(conn->close(conn, NULL));
     }
 };
 
@@ -238,8 +258,14 @@ struct WiredTigerBenchmark {
 
     template<typename FTWrapper>
     static std::vector<double> run(Settings s) {
+        // std::cout << "GOT HERE" << std::endl;
         bool diff = !fwt.initialized;
         size_t invfrac_nonrandom = 1;
+        size_t queryN = s.N;
+        bool useHashFunc = true;
+        if(s.other_settings.count("WiredTigerQueryN") > 0) {
+            queryN = s.other_settings["WiredTigerQueryN"];
+        }
         if(s.other_settings.count("WiredTigerInsertCacheSize") > 0) {
             diff |= fwt.insert_buffer_pool_size_mb != ((size_t)s.other_settings["WiredTigerInsertCacheSize"]);
             std::cout << diff << std::endl;
@@ -249,7 +275,11 @@ struct WiredTigerBenchmark {
             fwt.query_buffer_pool_size_mb = s.other_settings["WiredTigerQueryCacheSize"];
         }
         if(s.other_settings.count("WiredTigerInvFracNonrandom") > 0) {
-            invfrac_nonrandom = s.other_settings.count("WiredTigerInvFracNonrandom");
+            invfrac_nonrandom = s.other_settings["WiredTigerInvFracNonrandom"];
+        }
+        if(s.other_settings.count("WiredTigerUseHashFunc") > 0) {
+            // std::cout << "GOOBUNGUS" << std::endl;
+            useHashFunc = s.other_settings["WiredTigerUseHashFunc"];
         }
         if(s.other_settings.count("WiredTigerKeySize") > 0) {
             diff |= fwt.key_len != ((size_t)s.other_settings["WiredTigerKeySize"]);
@@ -262,8 +292,8 @@ struct WiredTigerBenchmark {
             fwt.val_len = s.other_settings["WiredTigerValSize"];
         }
         if(s.other_settings.count("WiredTigerInMem") > 0) {
-            diff |= fwt.in_memory != ((bool)s.other_settings["WiredTigerInMem"]);
-            std::cout << diff << std::endl;
+            // diff |= fwt.in_memory != ((bool)s.other_settings["WiredTigerInMem"]);
+            // std::cout << diff << std::endl;
             fwt.in_memory = s.other_settings["WiredTigerInMem"];
         }
         size_t numThreads = s.numThreads;
@@ -289,24 +319,24 @@ struct WiredTigerBenchmark {
         // size_t N = static_cast<size_t>(s.N * (*(s.maxLoadFactor)));
         if (diff || (s.N != fwt.num_inserted())) {
             std::cout << "resetting" << std::endl;
-            fwt.reset_and_insert(s.N, s.N);
+            fwt.reset_and_insert(s.N, queryN);
         }
         double maxLoadFactor = *(s.maxLoadFactor);
         // std::cout << "nn " << s.N << " " << filterSlots << std::endl;
         size_t filterSlots = static_cast<size_t>(s.N / maxLoadFactor);
         FT f(filterSlots);
-        std::cout << "nn " << s.N << " " << filterSlots << std::endl;
+        std::cout << "nn " << s.N << " " << filterSlots << " " << f.range << std::endl;
         
         double filterInsertTime = runTest([&]() {
-            fwt.insert_into_filter(f);
+            fwt.insert_into_filter(f, useHashFunc);
         });
-        fwt.check_no_false_negatives(f);
+        fwt.check_no_false_negatives(f, useHashFunc);
 
         fwt.initialize_to_filter(f);
 
         size_t fpr;
         double queryTime = runTest([&]() {
-            fpr = fwt.query_bench(f, s.N, invfrac_nonrandom);
+            fpr = fwt.query_bench(f, queryN, invfrac_nonrandom, useHashFunc);
         });
         fwt.reset();
 
@@ -331,7 +361,12 @@ struct WiredTigerBenchmark {
 
         std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
         // fout << s << std::endl;
-        fout << s.other_settings["WiredTigerInsertCacheSize"] << " " << s.other_settings["WiredTigerQueryCacheSize"] << " " << s.other_settings["WiredTigerKeySize"] << " " << s.other_settings["WiredTigerValSize"] << " " << s.other_settings["WiredTigerInMem"] << " " << s.other_settings["WiredTigerInvFracNonrandom"] << std::endl;
-        fout << avgFilterInsertTime << " " << (s.N / avgFilterInsertTime) << " " << (s.N / avgQueryTime) << " " << (fpr / s.N) << std::endl;
+        size_t queryN = s.N;
+        if(s.other_settings.count("WiredTigerQueryN") > 0) {
+            queryN = s.other_settings["WiredTigerQueryN"];
+        }
+        // fout << s.other_settings["WiredTigerInsertCacheSize"] << " " << s.other_settings["WiredTigerQueryCacheSize"] << " " << s.other_settings["WiredTigerKeySize"] << " " << s.other_settings["WiredTigerValSize"] << " " << s.other_settings["WiredTigerInMem"] << " " << s.other_settings["WiredTigerInvFracNonrandom"] << std::endl;
+        fout << s;
+        fout << avgFilterInsertTime << " " << (s.N / avgFilterInsertTime) << " " << (queryN / avgQueryTime) << " " << (fpr / queryN) << std::endl;
     }
 };

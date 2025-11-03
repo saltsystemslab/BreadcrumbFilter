@@ -4,8 +4,9 @@ NumKeys
 4194304 
 67108864 
 268435456
+1073741824
 NumThreads 1
-NumTrials 5
+NumTrials 3
 NumReplicants 1
 LoadFactorTicks 20
 

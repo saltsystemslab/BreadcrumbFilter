@@ -572,6 +572,15 @@ struct BBFF_Wrapper {
 
 
 //Original cuckoo filter
+struct OriginalCF8_Wrapper {
+    using type = CuckooWrapper<size_t, 8>;
+    static constexpr std::string_view name = "OriginalCF8";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
+};
+
 struct OriginalCF12_Wrapper {
     using type = CuckooWrapper<size_t, 12>;
     static constexpr std::string_view name = "OriginalCF12";

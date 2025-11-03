@@ -1026,18 +1026,33 @@ private:
         auto testsCompleted = readConfig(outputFilepath, keywords);
         std::map < Settings, std::vector < std::vector < double>>> testResults;
         std::map <Settings, size_t> replicantCounts;
+        
+        // std::cout << "Printing settings to run." << std::endl;
+        // for (auto setting : testsToRun) {
+        //     std::cout << setting << std::endl;
+        // }
+
+        // std::cout << "getting test results" << std::endl;
 
         Settings curSetting;
         for (auto [keyword, vals]: testsCompleted) {
+            // std::cout << "AFAFAFAFAFAFAFAFAFAFAFAFAFAFGAFG" << std::endl;
+            // std::cout << keyword << " " << vals.size() << std::endl;
+            // std::cout << keyword << " " << vals[0] << std::endl;
+            // std::cout << "kkk " << keyword << std::endl;
             if (TestNames.count(keyword) == 1) {
                 curSetting.TestName = keyword;
             } else if (settingTypes.count(keyword) == 1) {
+                // std::cout << "setting val" << std::endl;
                 curSetting.setval(keyword, vals);
+                // std::cout << "done setting val" << std::endl;
             } else if (FTNames.count(keyword) == 1) {
                 curSetting.FTName = keyword;
             } else if (keyword ==
                        "TestResult"s) { ///Potential minor issue---technically could print one testresult within replicants but not others, in which case we print extra testresults at the end (keeping this one and then doing it again)
                 if (testsToRun.count(curSetting) >= 1) {
+                    // std::cout << "FOUND TEST" << std::endl;
+                    // std::cout << curSetting << std::endl;
                     replicantCounts[curSetting]++;
                     testResults[curSetting].push_back(vals);
                     if (replicantCounts[curSetting] >= curSetting.numReplicants) {
@@ -1045,11 +1060,17 @@ private:
                         replicantCounts[curSetting] = 0;
                     }
                 }
+                // else {
+                //     std::cout << "DID NOT FIND TEST" << std::endl;
+                //     std::cout << curSetting << std::endl;
+                // }
             } else {
                 std::cerr << "Bug in the code" << std::endl;
                 exit(-1);
             }
         }
+
+        // std::cout << "got test results" << std::endl;
 
         return std::pair{testResults, testsToRun};
     }
@@ -1061,6 +1082,8 @@ public:
     static void
     runTests(const char *configFilepath, const char *outputFilepath, const char *analysisFolderPath = nullptr,
              bool rerun = false) {
+
+        // std::cout << "adfja;sldfj;apppppppp;adjdfkafk;asdjf" << std::endl;
 
         std::set <std::string> keywords;
         keywords.insert(FTNames.begin(), FTNames.end());
@@ -1079,8 +1102,11 @@ public:
                     curSettings.setval(keyword, vals);
                 } else if (FTNames.count(keyword) == 1) {
                     curSettings.FTName = keyword;
+                    // std::cout << "adfja;sldfj;afafafiewroeriewuoriuwe;adjdfkafk;asdjf" << std::endl;
                     auto settingCombos = curSettings.getSettingsCombos();
                     for (auto setting: settingCombos) {
+                        // std::cout << "gooba" << std::endl;
+                        // std::cout << setting << std::endl;
                         testsToRun.insert(setting);
                     }
                 } else {
@@ -1103,8 +1129,10 @@ public:
         size_t testOn = 0;
         std::chrono::time_point <chrono::system_clock> startTime, curTime;
         startTime = std::chrono::system_clock::now();
+        std::cout << "adfja;sldfj;fafafafafafafaf;adjdfkafk;asdjf" << std::endl;
         for (Settings s: testsToRunRandomized) {
             cout << s;
+            // cout << "FAFAFAF" << std::endl;
             std::vector <std::vector<double>> results(s.numReplicants);
             std::vector <std::thread> threads;
             auto funcToRun = runFuncs[s.TestName][s.FTName];
@@ -1137,6 +1165,8 @@ public:
                  << std::llround(elapsed.count() / portionDone) << " seconds." << std::endl << std::endl << std::endl;
         }
 
+        // std::cout << "adfja;sldfj;alsdjfk;adjdfkafk;asdjf" << std::endl;
+
         if (analysisFolderPath) {
 
             std::map < std::string, std::map < std::string, std::function < void(Settings, std::filesystem::path,
@@ -1147,6 +1177,8 @@ public:
             auto allResults = getTestResults(outputFilepath, keywords, testsToRun).first;
 
             for (auto [setting, _]: allResults) {
+                // std::cout << "HIHIHIH" << std::endl;
+                // std::cout << setting << std::endl;
                 auto outputFolder = std::filesystem::path(analysisFolderPath) / setting.TestName / setting.FTName;
                 std::filesystem::create_directories(outputFolder);
                 std::filesystem::remove_all(outputFolder);
@@ -1154,10 +1186,14 @@ public:
             }
 
             for (auto [setting, results]: allResults) {
+                // std::cout << "IHIHIHIHI" << std::endl;
+                // std::cout << setting << std::endl;
+                // std::cout << results[0][0] << std::endl;
                 auto outputFolder = std::filesystem::path(analysisFolderPath) / setting.TestName / setting.FTName;
                 analyzeFuncs[setting.TestName][setting.FTName](setting, outputFolder, results);
             }
         }
+        // std::cout << "DONE" << std::endl;
     }
 };
 
@@ -1170,7 +1206,7 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         PF_TC_Wrapper,
         PF_CFF12_Wrapper, PF_BBFF_Wrapper,
         TC_Wrapper, CFF12_Wrapper, BBFF_Wrapper,
-        OriginalCF12_Wrapper, OriginalCF16_Wrapper,
+        OriginalCF8_Wrapper, OriginalCF12_Wrapper, OriginalCF16_Wrapper,
         Morton3_12_Wrapper, Morton3_18_Wrapper,
         VQF_Wrapper, VQFT_Wrapper, BBF_Wrapper, PQF_8_3_Wrapper,
         CQF_Wrapper>;
@@ -1180,7 +1216,7 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         PQF_8_53_Wrapper, PQF_8_53_FRQ_Wrapper, PQF_16_36_Wrapper, PQF_16_36_FRQ_Wrapper,
         PQF_8_21_T_Wrapper, PQF_8_21_FRQ_T_Wrapper, PQF_8_52_T_Wrapper, PQF_8_52_FRQ_T_Wrapper,
         PQF_16_35_T_Wrapper, PQF_16_35_FRQ_T_Wrapper,
-        OriginalCF12_Wrapper, OriginalCF16_Wrapper,
+        OriginalCF8_Wrapper, OriginalCF12_Wrapper, OriginalCF16_Wrapper,
         Morton3_12_Wrapper, Morton3_18_Wrapper,
         VQF_Wrapper, VQFT_Wrapper, PQF_8_3_Wrapper,
         CQF_Wrapper>;

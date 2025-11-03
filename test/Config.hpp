@@ -22,7 +22,9 @@ struct Settings {
         return std::set < std::string >
                {"NumKeys", "NumTrials", "NumThreads", "NumReplicants", "LoadFactorTicks", "MaxLoadFactor",
                 "MinLoadFactor", "MaxInsertDeleteRatio", 
-                "WiredTigerInsertCacheSize", "WiredTigerQueryCacheSize", "WiredTigerKeySize", "WiredTigerValSize", "WiredTigerInMem", "WiredTigerInvFracNonrandom"};
+                "WiredTigerInsertCacheSize", "WiredTigerQueryCacheSize", "WiredTigerKeySize", 
+                "WiredTigerValSize", "WiredTigerInMem", "WiredTigerInvFracNonrandom", "WiredTigerQueryN",
+                "WiredTigerUseHashFunc"};
     }
 
     std::string TestName;
@@ -38,15 +40,18 @@ struct Settings {
     size_t nops_mixed = 0;
 
     auto getTuple() const {
+        // std::cout << "gettuple" << std::endl;
         return std::tie(TestName, FTName, N, numReplicants, numThreads, loadFactorTicks, maxLoadFactor, minLoadFactor,
-                        maxInsertDeleteRatio);
+                        maxInsertDeleteRatio,other_settings);
     }
 
     bool operator==(const Settings &rhs) const {
+        // std::cout << "CMP ==" << std::endl;
         return getTuple() == rhs.getTuple();
     }
 
     bool operator<(const Settings &rhs) const {
+        // std::cout << "CMP <" << std::endl;
         return getTuple() < rhs.getTuple();
     }
 
@@ -75,6 +80,9 @@ struct Settings {
             minLoadFactor = values[0];
         } else if (type == "MaxInsertDeleteRatio") {
             maxInsertDeleteRatio = values[0];
+        }
+        else {
+            other_settings[type] = values[0];
         }
     }
 };

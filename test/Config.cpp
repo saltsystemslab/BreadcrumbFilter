@@ -111,6 +111,14 @@ std::ostream &operator<<(std::ostream &os, const Settings &s) {
         os << "MaxLoadFactor " << (*(s.maxLoadFactor)) << "\n";
     os << "MinLoadFactor " << s.minLoadFactor << "\n";
     os << "MaxInsertDeleteRatio " << s.maxInsertDeleteRatio << "\n";
+    for (auto it = s.other_settings.begin(); it != s.other_settings.end(); it++)
+    {
+        // std::cout << "ps " << it->first << " " << ((size_t)it->second) << std::endl;
+        os << it->first   
+              << " "
+              << ((size_t)it->second)
+              << std::endl;
+    }
     os << s.FTName << "\n";
     return os;
 }
