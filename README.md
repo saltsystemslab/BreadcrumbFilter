@@ -23,6 +23,13 @@ cmake ..
 make clean && make
 ```
 
+### Building for AVX2 Benchmarks
+If you want to run VQF with AVX2, then either compile VQF with a machine that does not support AVX512, or copy the file Makefile_VQF_AVX2 to test/vqf and run 
+```make clean && make Makefile_VQF_AVX2```
+in test/vqf to compile VQF with AVX2 set to true instead of AVX512.
+
+Additionally, a flag needs to be set with cmake, "USE_AVX512 = OFF." That is, instead of ```cmake ..``` run ```cmake .. -DUSE_AVX512=OFF``` (make sure to run make clean before any recompiling after switching this flag).
+
 ## Steps To Run
 Please use the following command format to run the code
 ```shell
@@ -63,9 +70,13 @@ numactl -N 0 -m 0 ./Tester ST_Config.txt outST.txt analysis
 ```
 
 We have provided several examples of such configurations in the configuration files themselves. If you want to run the experiment for a particular filter, please remove the ```#``` before it's name.
-## Disclaimer
+### Disclaimer
 Please delete the ```outST.txt```/```outMT.txt``` files after running the single/multi-threaded benchmarks. Running with these files present will cause the experiments to not run at all.
 The results of all the tests can be found in the path ```build/analysis/<BenchmarkName>/<FilterName>```
+
+### AVX2 Disclaimer
+If built with AVX2, only run using filters that support AVX2 (see example AVX2 file in build/ST_Config_AVX2.txt).
+
 ## Multithreaded Benchmarks
 We provide the following multithreaded benchmarks.
 - Multithreaded inserts/queries: This benchmark first measures the time it takes to perform inserts with various number of threads, after which it performs queries and reports the throughput for both.
@@ -76,6 +87,12 @@ These benchmark configurations are found in a file called ```MT_Config.txt```. I
 numactl -N 0 -m 0 ./Tester MT_Config.txt outMT.txt analysis 
 ```
 **Please be advised that running the same benchmark consecutively will erase previous results of the same benchmark.**
+
+## WiredTiger Benchmarks
+We additionally support incorporating each of the filters into WiredTiger. We benchmark by first inserting many key-value pairs into WiredTiger. Then, for each filter, we reconfigure the cache size of WiredTiger so that the sum of the cache size and the filter size is WiredTigerQueryCacheSize. After this, the database is queried for many keys, with the (inverse of) the fraction of negative queries being a configurable parameter. Before querying the database, the filter is queried, and negative queries are filtered out.
+
+See example WiredTiger benchmarks in the build directory. One important thing to note is that these benchmarks may use a significant amount of disk space, depending on the dataset size. Additionally, tests should be run fixing the configuration for WiredTiger: the program normally avoids rebuilding the database between consecutive runs, but if the parameters change, it must. Additionally, there may be some bugs if a test file contains several different database configurations; we did not test this case. Finally, do not run multiple of these tests simultaneously, as every test creates the same directory for the database.
+
 ## Building With Cuckoo XOR Hash Function
 The code using the PQF hashing mechanism by default. If you would like to use the cuckoo hash function for load factor experiments, please rebuild the CMake with the following command:
 ```shell
