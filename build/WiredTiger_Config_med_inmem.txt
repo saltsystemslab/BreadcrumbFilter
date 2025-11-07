@@ -1,0 +1,38 @@
+WiredTiger
+NumKeys
+# 4194304
+# 16777216
+33554432
+# 67108864 
+WiredTigerQueryN 16777216
+NumThreads 1
+NumTrials 1
+NumReplicants 1
+LoadFactorTicks 20
+WiredTigerInsertCacheSize 16384
+WiredTigerQueryCacheSize 16384
+WiredTigerKeySize 16
+WiredTigerValSize 112
+WiredTigerInMem 1
+WiredTigerInvFracNonrandom 1000000000
+
+MaxLoadFactor 0.83
+PQF_8_22
+
+MaxLoadFactor 0.915
+PQF_8_53_FRQ
+
+MaxLoadFactor 0.88
+PQF_16_36_FRQ
+
+MaxLoadFactor 0.93
+VQF
+
+MaxLoadFactor 0.98
+Morton3_12
+
+MaxLoadFactor 0.945
+OriginalCF12
+
+MaxLoadFactor 0.94
+# CQF

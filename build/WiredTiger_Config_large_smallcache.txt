@@ -1,0 +1,120 @@
+WiredTiger
+NumKeys
+# power of 2 ends up hurting the cuckoo filter disproportionately as it only supports power of two, so doing 0.9 times power of 2
+# 268435456
+241591910
+WiredTigerQueryN 67108864
+NumThreads 1
+NumTrials 1
+NumReplicants 1
+LoadFactorTicks 20
+WiredTigerInsertCacheSize 33000
+WiredTigerQueryCacheSize 1024
+WiredTigerKeySize 8
+WiredTigerValSize 24
+WiredTigerInMem 0
+WiredTigerInvFracNonrandom 10000000
+WiredTigerUseHashFunc 0
+
+MaxLoadFactor 0.83
+PQF_8_22
+
+MaxLoadFactor 0.915
+PQF_8_53_FRQ
+
+MaxLoadFactor 0.88
+PQF_16_36_FRQ
+
+MaxLoadFactor 0.93
+VQF
+
+MaxLoadFactor 0.98
+Morton3_12
+
+MaxLoadFactor 0.945
+OriginalCF12
+
+# MaxLoadFactor 0.94
+# CQF
+
+
+
+
+
+WiredTigerInvFracNonrandom 100
+WiredTigerUseHashFunc 0
+
+MaxLoadFactor 0.83
+PQF_8_22
+
+MaxLoadFactor 0.915
+PQF_8_53_FRQ
+
+MaxLoadFactor 0.88
+PQF_16_36_FRQ
+
+MaxLoadFactor 0.93
+VQF
+
+MaxLoadFactor 0.98
+Morton3_12
+
+MaxLoadFactor 0.945
+OriginalCF12
+
+# MaxLoadFactor 0.94
+# CQF
+
+
+
+
+WiredTigerInvFracNonrandom 30
+WiredTigerUseHashFunc 0
+
+MaxLoadFactor 0.83
+PQF_8_22
+
+MaxLoadFactor 0.915
+PQF_8_53_FRQ
+
+MaxLoadFactor 0.88
+PQF_16_36_FRQ
+
+MaxLoadFactor 0.93
+VQF
+
+MaxLoadFactor 0.98
+Morton3_12
+
+MaxLoadFactor 0.945
+OriginalCF12
+
+# MaxLoadFactor 0.94
+# CQF
+
+
+
+
+WiredTigerInvFracNonrandom 10
+WiredTigerUseHashFunc 0
+
+MaxLoadFactor 0.83
+PQF_8_22
+
+MaxLoadFactor 0.915
+PQF_8_53_FRQ
+
+MaxLoadFactor 0.88
+PQF_16_36_FRQ
+
+MaxLoadFactor 0.93
+VQF
+
+MaxLoadFactor 0.98
+Morton3_12
+
+MaxLoadFactor 0.945
+OriginalCF12
+
+# MaxLoadFactor 0.94
+# CQF

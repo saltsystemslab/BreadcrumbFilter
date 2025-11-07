@@ -1,0 +1,49 @@
+Benchmark
+NumKeys 
+268435456
+NumThreads 1
+NumTrials 1
+NumReplicants 10
+LoadFactorTicks 2
+
+MaxLoadFactor 0.93
+VQF
+
+MaxLoadFactor 0.875
+VQF16
+
+MaxLoadFactor 0.98
+Morton3_12
+MaxLoadFactor 0.975
+Morton3_18
+
+MaxLoadFactor 0.95
+OriginalCF8
+OriginalCF12
+OriginalCF16
+
+MaxLoadFactor 0.83
+PQF_8_22
+
+MaxLoadFactor 0.95
+BBFF
+
+MaxLoadFactor 0.895
+PQF_8_22BB_FRQ
+
+MaxLoadFactor 0.82
+PQF_8_31_FRQ
+
+MaxLoadFactor 0.915
+PQF_8_53_FRQ
+
+MaxLoadFactor 0.91
+PQF_8_62_FRQ
+
+MaxLoadFactor 0.88
+PQF_16_36_FRQ
+
+MaxLoadFactor 0.91
+PF_TC 
+PF_CFF12 
+PF_BBFF

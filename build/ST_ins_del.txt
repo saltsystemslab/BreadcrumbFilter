@@ -1,0 +1,86 @@
+InsertDelete
+NumTrials 1
+NumReplicants 3
+NumKeys 4194304
+MaxInsertDeleteRatio 50
+MinLoadFactor 0.8
+LoadFactorTicks 10
+
+# the load factor benchmarks
+
+LoadFactorTicks 2
+MaxLoadFactor 0.85
+PQF_16_36_FRQ
+
+LoadFactorTicks 3
+MaxLoadFactor 0.9
+PQF_8_53_FRQ
+
+MaxLoadFactor 0.9
+VQF
+
+MaxLoadFactor 0.9
+OriginalCF12 
+
+MaxLoadFactor 0.9
+Morton3_12
+
+
+# the efficiency benchmarks
+#>=0.7 for cuckoo
+LoadFactorTicks 2
+MaxLoadFactor 0.925
+OriginalCF12
+
+#>=0.68 for cuckoo
+MaxLoadFactor 0.895
+OriginalCF12
+
+#>=0.63 for cuckoo
+MaxLoadFactor 0.815
+OriginalCF12
+
+
+#>=0.73 for BCF53
+MaxLoadFactor 0.915
+PQF_8_53_FRQ
+
+#>=0.7 for BCF53
+MaxLoadFactor 0.865
+PQF_8_53_FRQ
+
+#>=0.68 for BCF53
+MaxLoadFactor 0.84
+PQF_8_53_FRQ
+
+#>=0.63 for BCF53
+MaxLoadFactor 0.77
+PQF_8_53_FRQ
+
+
+#>=0.73 for BCF36
+MaxLoadFactor 0.815
+PQF_16_36_FRQ
+
+#>=0.7 for BCF36
+MaxLoadFactor 0.83
+PQF_16_36_FRQ
+
+#>=0.68 for BCF36
+MaxLoadFactor 0.75
+PQF_16_36_FRQ
+
+#>=0.63 for BCF36
+MaxLoadFactor 0.695
+PQF_16_36_FRQ
+
+
+
+#>=0.68 for VQF
+MaxLoadFactor 0.925
+VQF
+
+#>=0.63 for VQF
+MaxLoadFactor 0.845
+VQF
+
