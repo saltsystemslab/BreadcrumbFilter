@@ -528,7 +528,7 @@ struct BenchmarkWrapper {
             fins << efficiency << " " << (effectiveN / averageInsertTimes[i]) << "\n";
             fsquery << efficiency << " " << (effectiveN / averageSuccessfulQueryTimes[i]) << "\n";
             frquery << efficiency << " " << (effectiveN / averageRandomQueryTimes[i]) << "\n";
-            ffpr << efficiency << " " << averageFalsePositiveRates[i] << "\n";
+            ffpr << efficiency << " " << averageFalsePositiveRates[i] << " " << std::log2(1.0 / averageFalsePositiveRates[i]) << " " << (averageSizes[i] * 8.0 / (s.N * loadFactor)) << "\n";
             if (printDeletes) {
                 fremoval << efficiency << " " << (effectiveN / averageDeleteTimes[i]) << "\n";
             }
@@ -1208,7 +1208,7 @@ using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wr
         TC_Wrapper, CFF12_Wrapper, BBFF_Wrapper,
         OriginalCF8_Wrapper, OriginalCF12_Wrapper, OriginalCF16_Wrapper,
         Morton3_12_Wrapper, Morton3_18_Wrapper,
-        VQF_Wrapper, VQFT_Wrapper, BBF_Wrapper, PQF_8_3_Wrapper,
+        VQF_Wrapper, VQFT_Wrapper, VQF16_Wrapper, BBF_Wrapper, PQF_8_3_Wrapper,
         CQF_Wrapper>;
 #else
 using FTTuple = std::tuple<PQF_8_22_Wrapper, PQF_8_22_FRQ_Wrapper, PQF_8_22BB_Wrapper, PQF_8_22BB_FRQ_Wrapper,

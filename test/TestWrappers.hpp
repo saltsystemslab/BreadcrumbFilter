@@ -24,8 +24,8 @@
 class VQFWrapper {
     size_t nslots;
     vqf_filter *filter;
-    static constexpr size_t
-    QUQU_SLOTS_PER_BLOCK = 48; //Defined in vqf_filter.cpp so just copied from here. However there its defined based on remainder size, but here we just assume 8
+    // static constexpr size_t
+    // QUQU_SLOTS_PER_BLOCK = 48; //Defined in vqf_filter.cpp so just copied from here. However there its defined based on remainder size, but here we just assume 8
 
 public:
     size_t range;
@@ -49,10 +49,11 @@ public:
     }
 
     inline std::uint64_t sizeFilter() {
-        //Copied from vqf_filter.c
-        uint64_t total_blocks = (nslots + QUQU_SLOTS_PER_BLOCK) / QUQU_SLOTS_PER_BLOCK;
-        uint64_t total_size_in_bytes = sizeof(vqf_block) * total_blocks;
-        return total_size_in_bytes;
+        // //Copied from vqf_filter.c
+        // uint64_t total_blocks = (nslots + QUQU_SLOTS_PER_BLOCK) / QUQU_SLOTS_PER_BLOCK;
+        // uint64_t total_size_in_bytes = sizeof(vqf_block) * total_blocks;
+        // return total_size_in_bytes;
+        return filter->metadata.total_size_in_bytes;
     }
 
     inline bool remove(std::uint64_t hash) {
@@ -638,6 +639,16 @@ struct VQFT_Wrapper {
     static constexpr bool onlyInsertsThreaded = true;
     static constexpr bool canBatch = false;
     static constexpr bool canDelete = true;
+    static constexpr bool canMerge = false;
+};
+
+//not a real different one from VQF, but just for the output distinction. Again, for 16 bits VQF needs macro change, so this requires being careful and making sure you're compiling the right version
+struct VQF16_Wrapper {
+    using type = VQFWrapper; //kinda bad
+    static constexpr std::string_view name = "VQF16";
+    static constexpr bool threaded = false;
+    static constexpr bool canBatch = false;
+    static constexpr bool canDelete = false;
     static constexpr bool canMerge = false;
 };
 
