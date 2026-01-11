@@ -1,5 +1,5 @@
 README
-# Partition Quotient Filter
+# Breadcrumb Filter
 To test the build, we installed a fresh copy of Ubuntu Server 24.0.3 LTS. Note that running the benchmarks requires a processor with full support for AVX512. Additionally, while it is possible to run benchmarks on very small test cases, some of the default provided test configuration files require several dozen gigabytes of RAM to run (particularly for WiredTiger benchmarks).
 ## TODO: test with default g++ installed!
 ## Steps To Build
