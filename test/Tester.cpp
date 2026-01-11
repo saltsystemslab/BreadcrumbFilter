@@ -1129,7 +1129,6 @@ public:
         size_t testOn = 0;
         std::chrono::time_point <chrono::system_clock> startTime, curTime;
         startTime = std::chrono::system_clock::now();
-        std::cout << "adfja;sldfj;fafafafafafafaf;adjdfkafk;asdjf" << std::endl;
         for (Settings s: testsToRunRandomized) {
             cout << s;
             // cout << "FAFAFAF" << std::endl;
