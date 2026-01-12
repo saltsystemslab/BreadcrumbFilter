@@ -23,11 +23,11 @@ git submodule update --init
 cd test/vqf
 git checkout master
 git pull
-make clean && make THREAD=1 
+make clean && make THREAD=0
 cd ../..
 ```
 ### Disclaimer:
-While running the single threaded VQF benchmarks, please make VQF without the ```THREAD = 1``` flag.
+If you want to run the multithreaded benchmarks, please make VQF setting ```THREAD = 1``` instead of 0.
 - Build the CQF files. Please execute the following commands.
 ```shell
 cd test/cqf
@@ -52,6 +52,7 @@ mkdir avx512
 cd avx512
 cmake ../..
 make clean && make
+cd ../..
 ```
 
 ### Building for AVX2 Benchmarks
@@ -70,8 +71,9 @@ Additionally, a flag needs to be set with cmake, "USE_AVX512 = OFF." That is, in
 cd build
 mkdir avx2
 cd avx2
-cmake .. -DUSE_AVX512=OFF
+cmake ../.. -DUSE_AVX512=OFF
 make clean && make
+cd ../..
 ```
 
 ## Steps To Run
@@ -83,7 +85,9 @@ for the standard avx512 version or
 ```shell
 numactl -N 0 -m 0 ./avx2/Tester <config_file> <output_file> <output_directory>
 ```
-for the avx2 version.
+for the avx2 version. These commands are run assuming you are currently in the ``build`` directory.
+Example configuration files can be found in the ``build/configs`` directory.
+
 ## Single-Threaded Benchmarks
 We provide the following single-threaded benchmarks.
 - Standard Benchmark: This benchmark will insert a certain number of keys into the filter, perform queries for the same keys, perform queries for keys not in the filter to measure false positives, and perform deletes if the filter supports it.
@@ -134,7 +138,7 @@ We provide the following multithreaded benchmarks.
 
 These benchmark configurations are found in a file called ```MT_Config.txt```. It can be run the same way as the single threaded tests. For example,
 ```shell
-numactl -N 0 -m 0 ./avx512/Tester MT_Config.txt outMT.txt analysis 
+numactl -N 0 -m 0 ./avx512/Tester configs/MT_Config.txt outMT.txt analysis 
 ```
 **Please be advised that running the same benchmark consecutively will erase previous results of the same benchmark.**
 
@@ -145,7 +149,10 @@ One can configure the test to run entirely in memory or to give a fixed memory b
 
 Lastly, one can change the size of keys and values with the `WiredTigerKeySize` and `WiredTigerValSize` options.
 
-See the `WiredTiger_Config_...` files for examples of configurations to run the WiredTiger benchmarks. Depending on your disk and memory capacity, you can opt to run a different configuration file, we have a medium size, a large size, and tiny sizes, with in memory and small cache versions of each. 
+See the `WiredTiger_Config_...` files for examples of configurations to run the WiredTiger benchmarks. Depending on your disk and memory capacity, you can opt to run a different configuration file, we have a medium size, a large size, and tiny sizes, with in memory and small cache versions of each. For example, you can run
+```shell
+numactl -N 0 -m 0 ./avx512/Tester configs/WiredTiger_Config_tiny_smallcache.txt outWT.txt analysis 
+```
  
  ### Disclaimer
  One important thing to note is that these benchmarks may use a significant amount of disk space (and correspondingly memory), depending on the dataset size. Additionally, tests should be run fixing the configuration for WiredTiger: the program normally avoids rebuilding the database between consecutive runs, but if the parameters change, it must. Additionally, there may be some bugs if a test file contains several different database configurations; we did not test this case. Finally, do not run multiple of these tests simultaneously, as every test creates the same directory for the database.
