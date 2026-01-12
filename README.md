@@ -61,7 +61,7 @@ in test/vqf to compile VQF with AVX2 set to true instead of AVX512. Here is the 
 ```shell
 cd test/vqf
 cp ../Makefile_VQF_AVX2 Makefile_VQF_AVX2
-make clean && make -f Makefile_VQF_AVX2
+make -f Makefile_VQF_AVX2 clean && make -f Makefile_VQF_AVX2
 cd ../..
 ```
 
