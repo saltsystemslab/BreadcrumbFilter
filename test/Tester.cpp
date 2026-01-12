@@ -261,8 +261,8 @@ struct MergeWrapper {
 
         double effectiveN = s.N * s.maxLoadFactor.value();
         std::ofstream fout(outputFolder / (std::to_string(s.N) + ".txt"), std::ios_base::app);
-        fout << "Max Load Factor" << std::setw(30) << "Average Merge Time (micros/key)" << std::setw(30) << "Merge Throughput (M keys/sec)" << std::endl;
-        fout << maxLoadFactor << std::setw(30) << avgInsTime << std::setw(30) << (effectiveN / avgInsTime) << std::endl;
+        fout << std::setw(30) << "Max Load Factor" <<   std::setw(30) << "Average Merge Time (micros/key)" << std::setw(30) << "Merge Throughput (M keys/sec)" << std::endl;
+        fout << std::setw(30) << maxLoadFactor <<  std::setw(30) << avgInsTime << std::setw(30) << (effectiveN / avgInsTime) << std::endl;
     }
 };
 
@@ -364,10 +364,10 @@ struct MultithreadedWrapper {
         std::filesystem::create_directories(outputFolder);
         std::ofstream finsert(outputFolder / (std::to_string(s.N) + "-insert.txt"), std::ios_base::app);
         std::ofstream fquery(outputFolder / (std::to_string(s.N) + "-query.txt"), std::ios_base::app);
-        finsert << "Num Threads" << std::setw(20) << "Avg Time/Insert (micros / key)" << std::setw(30) << "Avg Throughput (M key/sec)" << std::endl;
-        finsert << s.numThreads << std::setw(20) << averageInsertTimes << std::setw(30) << (effectiveN / averageInsertTimes) << std::endl;
-        finsert << "Num Threads" << std::setw(20) << "Avg Time/Insert (micros / key)" << std::setw(30) << "Avg Throughput (M key/sec)" << std::endl;
-        fquery << s.numThreads << std::setw(20) << averageQueryTimes << std::setw(30) << (effectiveN / averageQueryTimes) << std::endl;
+        finsert << std::setw(20) << "Num Threads" << std::setw(30) << "Avg Time/Insert (micros / key)" << std::setw(30) << "Avg Throughput (M key/sec)" << std::endl;
+        finsert << std::setw(20) << s.numThreads << std::setw(30) << averageInsertTimes << std::setw(30) << (effectiveN / averageInsertTimes) << std::endl;
+        finsert << std::setw(20) << "Num Threads" << std::setw(30) << "Avg Time/Insert (micros / key)" << std::setw(30) << "Avg Throughput (M key/sec)" << std::endl;
+        fquery << std::setw(20) << s.numThreads << std::setw(30) << averageQueryTimes << std::setw(30) << (effectiveN / averageQueryTimes) << std::endl;
     }
 };
 
@@ -523,28 +523,28 @@ struct BenchmarkWrapper {
         std::ofstream ffpr(outputFolder / "fpr.txt");
         std::ofstream fremoval(outputFolder / "removal.txt");
         std::ofstream fefficiency(outputFolder / "efficiency.txt");
-        fins << "Space Efficiency" << std::setw(20) << "Avg Insertion Throughput (M key/sec)" << std::endl;
-        fsquery << "Space Efficiency" << std::setw(20) << "Avg Positive Query Throughput (M key/sec)" << std::endl;
-        frquery << "Space Efficiency" << std::setw(20) << "Avg Random Query Throughput (M key/sec)" << std::endl;
+        fins << std::setw(20) << "Space Efficiency" << std::setw(40) << "Avg Insertion Throughput (M key/sec)" << std::endl;
+        fsquery << std::setw(20) << "Space Efficiency" << std::setw(40) << "Avg Positive Query Throughput (M key/sec)" << std::endl;
+        frquery << std::setw(20) << "Space Efficiency" << std::setw(40) << "Avg Random Query Throughput (M key/sec)" << std::endl;
         if (printDeletes) {
-            fremoval << "Space Efficiency" << std::setw(20) << "Avg Deletion Throughput (M key/sec)" << std::endl;
+            fremoval << std::setw(20) << "Space Efficiency" << std::setw(40) << "Avg Deletion Throughput (M key/sec)" << std::endl;
         }
-        ffpr << "Space Efficiency" << std::setw(20) << "False positive rate (eps)" << std::setw(30) << "log(1/eps)" << std::setw(15) << "Bits/key" << "\n";
-        fefficiency << "Load Factor" << std::setw(15) << "Space Efficiency" << "\n";
+        ffpr << std::setw(20) << "Space Efficiency" << std::setw(30) << "False positive rate (eps)" << std::setw(15) << "log(1/eps)" << std::setw(15) << "Bits/key" << "\n";
+        fefficiency << std::setw(15) << "Load Factor" << std::setw(20) << "Space Efficiency" << "\n";
         for (size_t i = 0; i < s.loadFactorTicks; i++) {
             double effectiveN = s.N * s.maxLoadFactor.value() / s.loadFactorTicks;
             double loadFactor = s.maxLoadFactor.value() * (i + 1) / s.loadFactorTicks;
             double idealSize = std::log2(1.0 / averageFalsePositiveRates[i]) * s.N * loadFactor;
             double efficiency = idealSize / (averageSizes[i] * 8); //multiply by 8 to get bits from bytes
 
-            fins << efficiency << std::setw(20)<< (effectiveN / averageInsertTimes[i]) << "\n";
-            fsquery << efficiency << std::setw(20)<< (effectiveN / averageSuccessfulQueryTimes[i]) << "\n";
-            frquery << efficiency << std::setw(20)<< (effectiveN / averageRandomQueryTimes[i]) << "\n";
-            ffpr << efficiency << std::setw(20)<< averageFalsePositiveRates[i] << std::setw(30) << std::log2(1.0 / averageFalsePositiveRates[i]) << std::setw(15) << (averageSizes[i] * 8.0 / (s.N * loadFactor)) << "\n";
+            fins << std::setw(20) << efficiency << std::setw(40) << (effectiveN / averageInsertTimes[i]) << "\n";
+            fsquery << std::setw(20) << efficiency << std::setw(40) << (effectiveN / averageSuccessfulQueryTimes[i]) << "\n";
+            frquery << std::setw(20) << efficiency << std::setw(40) << (effectiveN / averageRandomQueryTimes[i]) << "\n";
+            ffpr << std::setw(20) << efficiency << std::setw(30) << averageFalsePositiveRates[i] << std::setw(15) << std::log2(1.0 / averageFalsePositiveRates[i]) << std::setw(15) << (averageSizes[i] * 8.0 / (s.N * loadFactor)) << "\n";
             if (printDeletes) {
-                fremoval << efficiency << std::setw(20) << (effectiveN / averageDeleteTimes[i]) << "\n";
+                fremoval << std::setw(20) << efficiency << std::setw(40) << (effectiveN / averageDeleteTimes[i]) << "\n";
             }
-            fefficiency << loadFactor << std::setw(15) << efficiency << "\n";
+            fefficiency << std::setw(15) << loadFactor << std::setw(20) << efficiency << "\n";
         }
     }
 };

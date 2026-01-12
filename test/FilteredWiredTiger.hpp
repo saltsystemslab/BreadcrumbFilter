@@ -368,7 +368,7 @@ struct WiredTigerBenchmark {
         }
         // fout << s.other_settings["WiredTigerInsertCacheSize"] << " " << s.other_settings["WiredTigerQueryCacheSize"] << " " << s.other_settings["WiredTigerKeySize"] << " " << s.other_settings["WiredTigerValSize"] << " " << s.other_settings["WiredTigerInMem"] << " " << s.other_settings["WiredTigerInvFracNonrandom"] << std::endl;
         fout << s;
-        fout << "Average Filter Insert Throughput" << std::setw(40) << "Average Query Throughput (Filter + DB)" << std::setw(40) << "False Positive Rate" << std::endl;
-        fout << (s.N / avgFilterInsertTime) << std::setw(40) << (queryN / avgQueryTime) << std::setw(40) << (fpr / queryN) << std::endl;
+        fout << std::setw(40) << "Average Filter Insert Throughput"  << std::setw(40) << "Average Query Throughput (Filter + DB)" << std::setw(30) <<  "False Positive Rate" << std::endl;
+        fout <<  std::setw(40) << (s.N / avgFilterInsertTime) << std::setw(40) << (queryN / avgQueryTime) <<  std::setw(30) << (fpr / queryN) << std::endl;
     }
 };
