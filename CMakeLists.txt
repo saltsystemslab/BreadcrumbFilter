@@ -70,7 +70,7 @@ if(USE_AVX512)
     )
 else()
     set_property(TARGET vqf PROPERTY IMPORTED_OBJECTS
-    ${PROJECT_SOURCE_DIR}/test/vqf/obj/vqf_filter.o
+    ${PROJECT_SOURCE_DIR}/test/vqf/obj_avx2/vqf_filter.o
     )
 endif()
 

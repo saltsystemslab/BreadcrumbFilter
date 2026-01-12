@@ -23,7 +23,7 @@ LD= g++ -std=c++11
 
 LOC_INCLUDE=include
 LOC_SRC=src
-OBJDIR=obj
+OBJDIR=obj_avx2
 
 CXXFLAGS += -Wall $(DEBUG) $(PROFILE) $(OPT) $(ARCH) -m64 -I. -I$(LOC_INCLUDE)
 
@@ -37,18 +37,11 @@ LDFLAGS += $(DEBUG) $(PROFILE) $(OPT) -lpthread -lssl -lcrypto -lm -litm
 
 all: $(TARGETS)
 
-# dependencies between programs and .o files
-ifeq ($(HAVE_AVX512),1)
-main:							$(OBJDIR)/main.o $(OBJDIR)/vqf_filter.o $(OBJDIR)/shuffle_matrix_512.o $(OBJDIR)/shuffle_matrix_512_16.o 
-main_id:						$(OBJDIR)/main_id.o $(OBJDIR)/vqf_filter.o $(OBJDIR)/shuffle_matrix_512.o $(OBJDIR)/shuffle_matrix_512_16.o 
-main_tx:						$(OBJDIR)/main_tx.o $(OBJDIR)/vqf_filter.o $(OBJDIR)/shuffle_matrix_512.o $(OBJDIR)/shuffle_matrix_512_16.o 
-bm:							$(OBJDIR)/bm.o $(OBJDIR)/vqf_filter.o $(OBJDIR)/shuffle_matrix_512.o $(OBJDIR)/shuffle_matrix_512_16.o 
-else
-main:							$(OBJDIR)/main.o $(OBJDIR)/vqf_filter.o 
-main_id:						$(OBJDIR)/main_id.o $(OBJDIR)/vqf_filter.o
-main_tx:						$(OBJDIR)/main_tx.o $(OBJDIR)/vqf_filter.o
-bm:							$(OBJDIR)/bm.o $(OBJDIR)/vqf_filter.o 
-endif
+
+main_avx2:							$(OBJDIR)/main.o $(OBJDIR)/vqf_filter.o 
+main_id_avx2:						$(OBJDIR)/main_id.o $(OBJDIR)/vqf_filter.o
+main_tx_avx2:						$(OBJDIR)/main_tx.o $(OBJDIR)/vqf_filter.o
+bm_avx2:							$(OBJDIR)/bm.o $(OBJDIR)/vqf_filter.o
 
 # dependencies between .o files and .cc (or .c) files
 $(OBJDIR)/shuffle_matrix_512_16.o: 	$(LOC_SRC)/shuffle_matrix_512_16.c

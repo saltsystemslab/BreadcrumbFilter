@@ -1,8 +1,6 @@
 WiredTiger
-NumKeys
 # power of 2 ends up hurting the cuckoo filter disproportionately as it only supports power of two, so doing 0.9 times power of 2
-# 268435456
-241591910
+NumKeys 241591910
 WiredTigerQueryN 67108864
 NumThreads 1
 NumTrials 1
