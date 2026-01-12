@@ -1,7 +1,6 @@
 README
 # Breadcrumb Filter
 To test the build, we installed a fresh copy of Ubuntu Server 24.0.3 LTS. Note that running the benchmarks requires a processor with full support for AVX512. Additionally, while it is possible to run benchmarks on very small test cases, some of the default provided test configuration files require several dozen gigabytes of RAM to run (particularly for WiredTiger benchmarks).
-## TODO: test with default g++ installed!
 ## TODO: Maybe just write a simple script to automate the (non-sudo) parts of this?
 ## Steps To Build
 - First, we need to install required packages. We will be using g++-11 as the compiller, and we need to install swig for wiredtiger to work:
@@ -46,7 +45,6 @@ cmake .. -DENABLE_STATIC=1 -DCMAKE_CXX_COMPILER=/usr/bin/g++-11
 make
 cd ../../..
 ```
-## TODO: Seems like you have to run the make command twice?? First time I did not have libwiredtiger.a
 - Build the Tester file. This is the main file required to run the benchmarks.
 ```shell
 cd build

@@ -1,4 +1,4 @@
-TARGETS= main main_tx main_id bm
+TARGETS= main_avx2 main_tx_avx2 main_id_avx2 bm_avx2
 
 OPT=-O3 -g
 
